@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  lint:
+    name: Lint (ruff + black)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dev dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run ruff
+        run: ruff check .
+
+      - name: Run black check
+        run: black --check .
+
+  typecheck:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install all dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ".[dev,geo]"
+
+      - name: Run mypy
+        run: mypy src/ppa
+
+  unit-tests:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ".[dev,geo,raster]"
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest -q --cov=ppa --cov-report=term-missing tests/unit
+
+  smoke-ch01:
+    name: Smoke test — Ch01
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install geo dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ".[dev,geo]"
+
+      - name: Create data symlink (use repo DATA/ directly)
+        run: |
+          mkdir -p data/raw
+          ln -s ${{ github.workspace }}/DATA data/raw/DATA
+
+      - name: Run Ch01 in sample mode
+        run: |
+          python -m chapters.ch01_transit_indicators \
+            --config config/chapters/ch01.yaml \
+            --sample 200 \
+            --output-root outputs_smoke
+
+      - name: Verify artifacts exist
+        run: |
+          test -f outputs_smoke/ch01/features.geoparquet
+          test -f outputs_smoke/ch01/model_metrics.json
+          ls outputs_smoke/ch01/figures/*.png

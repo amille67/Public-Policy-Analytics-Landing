@@ -1,0 +1,12 @@
+chapter_id: "ch02"
+crs_epsg: 26918
+sample: null
+inputs:
+  towns: "Chapter2/studyAreaTowns.geojson"
+  ugb: "Chapter2/Urban_Growth_Boundary.geojson"
+  buildings: "Chapter2/LancasterCountyBuildings.geojson"
+  boundary: "Chapter2/LancasterCountyBoundary.geojson"
+  greenspace: "Chapter2/LancasterGreenSpace.geojson"
+town_id_col: "NAME"
+max_distance_m: 5000
+interval_m: 500

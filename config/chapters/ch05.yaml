@@ -1,0 +1,19 @@
+chapter_id: "ch05"
+crs_epsg: 26916
+sample: null
+inputs:
+  boundary: "Chapter5/chicagoBoundary.geojson"
+  nhoods: "Chapter5/chicagoNhoods.geojson"
+  districts: "Chapter5/policeDistricts.geojson"
+  beats: "Chapter5/policeBeats.geojson"
+  abandoned_buildings: "Chapter5/abandonedBuildings.geojson"
+  abandoned_cars: "Chapter5/abandonedCars.geojson"
+  graffiti: "Chapter5/graffiti.geojson"
+  liquor_retail: "Chapter5/liquorRetail.geojson"
+  sanitation: "Chapter5/sanitation.geojson"
+  street_lights_out: "Chapter5/streetLightsOut.geojson"
+  burglaries17: "Chapter5/burglaries17.geojson"
+  burglaries18: "Chapter5/burglaries18.geojson"
+beat_id_col: "beat_num"
+cv_group_col: "district"
+buffer_distances_m: [250, 500, 1000]

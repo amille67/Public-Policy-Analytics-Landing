@@ -1,0 +1,17 @@
+chapter_id: "ch06"
+crs_epsg: null
+sample: null
+inputs:
+  churn: "Chapter6/churnBounce.csv"
+  subsidy: "Chapter6/housingSubsidy.csv"
+observed_col: "Churn"
+threshold_step: 0.01
+model:
+  type: "logistic"
+  max_iter: 2000
+  C: 1.0
+cost_benefit:
+  benefit_tp: 1000
+  benefit_tn: 0
+  cost_fp: -250
+  cost_fn: -500
