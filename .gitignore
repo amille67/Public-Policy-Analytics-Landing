@@ -15,6 +15,7 @@ venv/
 htmlcov/
 outputs/
 outputs_smoke/
+data/raw/DATA/
 data/interim/
 data/processed/
 *.pkl
