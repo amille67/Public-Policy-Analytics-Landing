@@ -27,6 +27,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     from sklearn.pipeline import Pipeline
     from sklearn.preprocessing import OneHotEncoder
 
+    from ppa.io.paths import chapter_output_dir
     from ppa.io.readers import read_csv
     from ppa.io.writers import write_csv, write_figure, write_json, write_parquet
     from ppa.ml.metrics import classification_metrics
@@ -39,7 +40,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     set_global_seed(settings.seed)
 
     data_root = Path(settings.data_root)
-    out_dir = output_root / "ch06" if output_root else Path("outputs/ch06")
+    out_dir = output_root / "ch06" if output_root else chapter_output_dir("ch06")
     fig_dir = out_dir / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)

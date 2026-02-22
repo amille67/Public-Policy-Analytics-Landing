@@ -7,6 +7,44 @@ on:
     branches: ["**"]
 
 jobs:
+  validate-configs:
+    name: Validate config files (TOML + YAML)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Validate pyproject.toml
+        run: |
+          python -c "
+          import tomllib, pathlib
+          tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          print('pyproject.toml OK')
+          "
+
+      - name: Validate chapter YAML configs
+        run: |
+          python -c "
+          import yaml, pathlib, sys
+          errors = []
+          for p in sorted(pathlib.Path('config/chapters').glob('*.yaml')):
+              try:
+                  yaml.safe_load(p.read_text())
+                  print(f'OK  {p}')
+              except Exception as e:
+                  errors.append(f'ERR {p}: {e}')
+          if errors:
+              print('\n'.join(errors), file=sys.stderr)
+              sys.exit(1)
+          "
+
   lint:
     name: Lint (ruff + black)
     runs-on: ubuntu-latest

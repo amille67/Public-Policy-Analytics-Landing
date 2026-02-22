@@ -25,6 +25,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
 
     from ppa.geo.crs import ensure_crs
     from ppa.geo.overlay import clip, sjoin
+    from ppa.io.paths import chapter_output_dir
     from ppa.io.readers import read_geodataframe
     from ppa.io.writers import write_figure, write_geoparquet, write_json
     from ppa.ml.cv import cross_validate_poisson_by_group
@@ -36,7 +37,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     set_global_seed(settings.seed)
 
     data_root = Path(settings.data_root)
-    out_dir = output_root / "ch05" if output_root else Path("outputs/ch05")
+    out_dir = output_root / "ch05" if output_root else chapter_output_dir("ch05")
     fig_dir = out_dir / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)

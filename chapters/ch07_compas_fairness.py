@@ -25,6 +25,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import StandardScaler
 
+    from ppa.io.paths import chapter_output_dir
     from ppa.io.readers import read_csv
     from ppa.io.writers import write_csv, write_figure, write_json
     from ppa.ml.fairness import iterate_fairness
@@ -38,7 +39,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     set_global_seed(settings.seed)
 
     data_root = Path(settings.data_root)
-    out_dir = output_root / "ch07" if output_root else Path("outputs/ch07")
+    out_dir = output_root / "ch07" if output_root else chapter_output_dir("ch07")
     fig_dir = out_dir / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)
@@ -100,9 +101,17 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y_binary, test_size=0.2, random_state=settings.seed, stratify=y_binary
+    # Use index-based split so group labels can be aligned to the same test rows
+    all_idx = np.arange(len(df))
+    train_idx, test_idx = train_test_split(
+        all_idx, test_size=0.2, random_state=settings.seed, stratify=y_binary
     )
+    X_train = X_scaled[train_idx]
+    X_test = X_scaled[test_idx]
+    y_train = y_binary[train_idx]
+    y_test = y_binary[test_idx]
+    groups_test = df.iloc[test_idx][group_col].to_numpy()
+
     model = fit_logistic_regression(X_train, y_train, seed=settings.seed)
     save_model(model, out_dir / "model.pkl")
 
@@ -114,7 +123,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         {
             "target": y_test,
             "p_recid": y_proba,
-            group_col: df[group_col].values[-len(y_test) :],
+            group_col: groups_test,
         }
     )
 
@@ -125,7 +134,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # ── 3. Fairness grid ──────────────────────────────────────────────────────
     df_test_for_fairness = pd.DataFrame(
         {
-            group_col: df[group_col].values[-len(y_test) :],
+            group_col: groups_test,
             "Recidivated": np.where(y_test == 1, "Recidivate", "notRecidivate"),
         }
     )

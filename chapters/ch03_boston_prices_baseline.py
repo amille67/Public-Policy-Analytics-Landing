@@ -28,6 +28,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     from ppa.geo.crs import ensure_crs
     from ppa.geo.nearest import mean_knn_distance
     from ppa.geo.overlay import sjoin
+    from ppa.io.paths import chapter_output_dir
     from ppa.io.readers import read_csv, read_geodataframe
     from ppa.io.writers import write_figure, write_json, write_parquet
     from ppa.ml.metrics import metrics_by_group, regression_metrics
@@ -39,7 +40,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     set_global_seed(settings.seed)
 
     data_root = Path(settings.data_root)
-    out_dir = output_root / "ch03" if output_root else Path("outputs/ch03")
+    out_dir = output_root / "ch03" if output_root else chapter_output_dir("ch03")
     fig_dir = out_dir / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)

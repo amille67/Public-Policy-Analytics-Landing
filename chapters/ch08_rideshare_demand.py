@@ -22,6 +22,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     """Execute the Ch8 pipeline end-to-end."""
     import pandas as pd
 
+    from ppa.io.paths import chapter_output_dir
     from ppa.io.readers import read_csv
     from ppa.io.writers import write_figure, write_json, write_parquet
     from ppa.ml.metrics import regression_metrics
@@ -32,7 +33,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     set_global_seed(settings.seed)
 
     data_root = Path(settings.data_root)
-    out_dir = output_root / "ch08" if output_root else Path("outputs/ch08")
+    out_dir = output_root / "ch08" if output_root else chapter_output_dir("ch08")
     fig_dir = out_dir / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)
