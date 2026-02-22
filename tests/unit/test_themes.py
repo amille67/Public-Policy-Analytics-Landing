@@ -1,7 +1,6 @@
 """Unit tests for ppa.viz.themes: plot_theme and map_theme."""
 
 import matplotlib
-import matplotlib.pyplot as plt
 import pytest
 
 from ppa.viz.themes import map_theme, plot_theme
@@ -57,7 +56,9 @@ class TestMapTheme:
     def test_map_theme_axis_hidden(self) -> None:
         theme = map_theme()
         # Axis labels should be hidden (labelsize=0 or labelbottom/labelleft=False)
-        assert theme.get("axes.labelsize") == 0 or theme.get("xtick.labelbottom") is False
+        assert (
+            theme.get("axes.labelsize") == 0 or theme.get("xtick.labelbottom") is False
+        )
 
     def test_map_theme_no_grid(self) -> None:
         theme = map_theme()

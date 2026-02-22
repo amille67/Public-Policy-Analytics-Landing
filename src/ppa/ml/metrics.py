@@ -8,9 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-def regression_metrics(
-    y_true: "ArrayLike", y_pred: "ArrayLike"
-) -> dict[str, float]:
+def regression_metrics(y_true: Any, y_pred: Any) -> dict[str, float]:
     """Compute MAE, RMSE, and R² for regression predictions.
 
     Args:
@@ -33,9 +31,7 @@ def regression_metrics(
     return {"mae": mae, "rmse": rmse, "r2": r2}
 
 
-def classification_metrics(
-    y_true: "ArrayLike", y_proba: "ArrayLike"
-) -> dict[str, Any]:
+def classification_metrics(y_true: Any, y_proba: Any) -> dict[str, Any]:
     """Compute ROC-AUC and PR-AUC for binary classification.
 
     Args:

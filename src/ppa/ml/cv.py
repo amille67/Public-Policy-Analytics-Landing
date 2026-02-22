@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -11,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 def cross_validate_poisson_by_group(
-    dataset: "Any",
+    dataset: Any,
     id_col: str,
     dependent_variable: str,
     ind_variables: list[str],
-) -> "Any":
+) -> Any:
     """Leave-one-group-out cross-validation using Poisson GLM.
 
     Python equivalent of R ``crossValidate(dataset, id, dependentVariable, indVariables)``.

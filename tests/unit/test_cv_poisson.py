@@ -18,7 +18,14 @@ def make_synthetic_gdf(n_per_group: int = 10, n_groups: int = 3, seed: int = 42)
         lam = np.exp(1.0 + coef * x / 100)
         y = rng.poisson(lam)
         for i in range(n_per_group):
-            rows.append({"group_id": g, "y": int(y[i]), "x1": float(x[i]), "geometry": Point(x[i], float(i))})
+            rows.append(
+                {
+                    "group_id": g,
+                    "y": int(y[i]),
+                    "x1": float(x[i]),
+                    "geometry": Point(x[i], float(i)),
+                }
+            )
 
     df = pd.DataFrame(rows)
     return gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:26918")
@@ -42,6 +49,7 @@ class TestCrossValidatePoissonByGroup:
 
     def test_preserves_geometry(self) -> None:
         import geopandas as gpd
+
         from ppa.ml.cv import cross_validate_poisson_by_group
 
         gdf = make_synthetic_gdf(n_per_group=10, n_groups=2)

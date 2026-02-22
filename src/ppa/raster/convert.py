@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
 
-def rast_to_df(dataset: "Any", *, band: int = 1) -> pd.DataFrame:
+def rast_to_df(dataset: Any, *, band: int = 1) -> pd.DataFrame:
     """Convert a rasterio dataset to a long-format DataFrame of (x, y, value).
 
     Python equivalent of R ``rast(inRaster)`` which calls ``xyFromCell`` and

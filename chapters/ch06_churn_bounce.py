@@ -20,13 +20,12 @@ logger = logging.getLogger(__name__)
 
 def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> None:
     """Execute the Ch6 pipeline end-to-end."""
-    import numpy as np
     import pandas as pd
-    from sklearn.model_selection import train_test_split
-    from sklearn.preprocessing import OneHotEncoder
-    from sklearn.impute import SimpleImputer
-    from sklearn.pipeline import Pipeline
     from sklearn.compose import ColumnTransformer
+    from sklearn.impute import SimpleImputer
+    from sklearn.model_selection import train_test_split
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import OneHotEncoder
 
     from ppa.io.readers import read_csv
     from ppa.io.writers import write_csv, write_figure, write_json, write_parquet
@@ -64,27 +63,53 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
 
     # Normalize target to 0/1
     churn_df[observed_col] = churn_df[observed_col].astype(str).str.strip().str.lower()
-    bool_map = {"yes": 1, "true": 1, "1": 1, "1.0": 1, "no": 0, "false": 0, "0": 0, "0.0": 0}
+    bool_map = {
+        "yes": 1,
+        "true": 1,
+        "1": 1,
+        "1.0": 1,
+        "churn": 1,
+        "no": 0,
+        "false": 0,
+        "0": 0,
+        "0.0": 0,
+        "no_churn": 0,
+    }
     churn_df["target"] = churn_df[observed_col].map(bool_map)
     churn_df = churn_df.dropna(subset=["target"])
     churn_df["target"] = churn_df["target"].astype(int)
 
     # ── 2. Feature preparation ────────────────────────────────────────────────
     exclude = {observed_col, "target"}
-    cat_cols = [c for c in churn_df.select_dtypes(include="object").columns if c not in exclude]
-    num_cols = [c for c in churn_df.select_dtypes(include="number").columns if c not in exclude]
+    cat_cols = [
+        c for c in churn_df.select_dtypes(include="object").columns if c not in exclude
+    ]
+    num_cols = [
+        c for c in churn_df.select_dtypes(include="number").columns if c not in exclude
+    ]
 
     X = churn_df[cat_cols + num_cols]
     y = churn_df["target"]
 
     # Preprocessing
-    preprocessor = ColumnTransformer([
-        ("cat", Pipeline([
-            ("impute", SimpleImputer(strategy="most_frequent")),
-            ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-        ]), cat_cols),
-        ("num", SimpleImputer(strategy="median"), num_cols),
-    ])
+    preprocessor = ColumnTransformer(
+        [
+            (
+                "cat",
+                Pipeline(
+                    [
+                        ("impute", SimpleImputer(strategy="most_frequent")),
+                        (
+                            "ohe",
+                            OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+                        ),
+                    ]
+                ),
+                cat_cols,
+            ),
+            ("num", SimpleImputer(strategy="median"), num_cols),
+        ]
+    )
 
     X_proc = preprocessor.fit_transform(X)
 
@@ -131,7 +156,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     }
 
     # ── 5. Save ───────────────────────────────────────────────────────────────
-    feat_out = pd.DataFrame(churn_df[["target"] + num_cols[:5]])
+    feat_out = pd.DataFrame(churn_df[["target", *num_cols[:5]]])
     write_parquet(feat_out, out_dir / "features.parquet")
     write_csv(thresholds_df, out_dir / "thresholds.csv")
     write_json(metrics, out_dir / "model_metrics.json")

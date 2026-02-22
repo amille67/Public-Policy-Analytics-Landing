@@ -52,13 +52,20 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     group_a = getattr(cfg, "group_a", "African-American")
     group_b = getattr(cfg, "group_b", "Caucasian")
     observed_col_raw = getattr(cfg, "observed_col", "two_year_recid")
-    feature_cols_cfg = getattr(cfg, "feature_cols", None) or ["age", "priors_count", "juv_fel_count", "juv_misd_count"]
+    feature_cols_cfg = getattr(cfg, "feature_cols", None) or [
+        "age",
+        "priors_count",
+        "juv_fel_count",
+        "juv_misd_count",
+    ]
     threshold_by = float(getattr(cfg, "threshold_by", 0.1))
     min_group_n = int(getattr(cfg, "min_group_n", 10))
 
     # Normalize labels
     if observed_col_raw in df.columns:
-        df["Recidivated"] = np.where(df[observed_col_raw].astype(str) == "1", "Recidivate", "notRecidivate")
+        df["Recidivated"] = np.where(
+            df[observed_col_raw].astype(str) == "1", "Recidivate", "notRecidivate"
+        )
     else:
         raise ValueError(f"Observed column '{observed_col_raw}' not found in dataset")
 
@@ -68,15 +75,20 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     for g in [group_a, group_b]:
         cnt = (df[group_col] == g).sum()
         if cnt < min_group_n:
-            raise ValueError(f"Group '{g}' has only {cnt} rows (min required: {min_group_n})")
+            raise ValueError(
+                f"Group '{g}' has only {cnt} rows (min required: {min_group_n})"
+            )
 
     # Features
     feature_cols = [c for c in feature_cols_cfg if c in df.columns]
     if not feature_cols:
-        feature_cols = [c for c in df.select_dtypes(include="number").columns
-                        if c not in {observed_col_raw, group_col}][:5]
+        feature_cols = [
+            c
+            for c in df.select_dtypes(include="number").columns
+            if c not in {observed_col_raw, group_col}
+        ][:5]
 
-    df = df.dropna(subset=feature_cols + [group_col, "Recidivated"])
+    df = df.dropna(subset=[*feature_cols, group_col, "Recidivated"])
 
     sample_n = getattr(cfg, "sample", None)
     if sample_n:
@@ -91,8 +103,6 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     X_train, X_test, y_train, y_test = train_test_split(
         X_scaled, y_binary, test_size=0.2, random_state=settings.seed, stratify=y_binary
     )
-    test_idx = np.where(np.isin(np.arange(len(df)), np.where(y_binary == y_test[0])[0]))[0]
-
     model = fit_logistic_regression(X_train, y_train, seed=settings.seed)
     save_model(model, out_dir / "model.pkl")
 
@@ -100,21 +110,25 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     clf_metrics = classification_metrics(y_test, y_proba)
 
     # ── 2. Threshold sweep by group ───────────────────────────────────────────
-    eval_df = pd.DataFrame({
-        "target": y_test,
-        "p_recid": y_proba,
-        group_col: df[group_col].values[-len(y_test):],
-    })
+    eval_df = pd.DataFrame(
+        {
+            "target": y_test,
+            "p_recid": y_proba,
+            group_col: df[group_col].values[-len(y_test) :],
+        }
+    )
 
     thresholds_by_group = iterate_thresholds(
         eval_df, "target", "p_recid", group=group_col, step=0.01
     )
 
     # ── 3. Fairness grid ──────────────────────────────────────────────────────
-    df_test_for_fairness = pd.DataFrame({
-        group_col: df[group_col].values[-len(y_test):],
-        "Recidivated": np.where(y_test == 1, "Recidivate", "notRecidivate"),
-    })
+    df_test_for_fairness = pd.DataFrame(
+        {
+            group_col: df[group_col].values[-len(y_test) :],
+            "Recidivated": np.where(y_test == 1, "Recidivate", "notRecidivate"),
+        }
+    )
 
     # Wrap model to return probabilities matching the test set
     class FixedProbModel:
@@ -151,17 +165,24 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
             values=["False_Positive_Rate", "False_Negative_Rate", "Accuracy"],
         )
         min_acc = float(getattr(cfg, "min_accuracy", 0.55))
-        if group_a in grid_wide["Accuracy"].columns and group_b in grid_wide["Accuracy"].columns:
-            min_acc_mask = (
-                grid_wide["Accuracy"][group_a].fillna(0) >= min_acc
-            ) & (
+        if (
+            group_a in grid_wide["Accuracy"].columns
+            and group_b in grid_wide["Accuracy"].columns
+        ):
+            min_acc_mask = (grid_wide["Accuracy"][group_a].fillna(0) >= min_acc) & (
                 grid_wide["Accuracy"][group_b].fillna(0) >= min_acc
             )
             if min_acc_mask.any():
                 filtered = grid_wide[min_acc_mask]
                 disparity = (
-                    (filtered["False_Positive_Rate"][group_a] - filtered["False_Positive_Rate"][group_b]).abs()
-                    + (filtered["False_Negative_Rate"][group_a] - filtered["False_Negative_Rate"][group_b]).abs()
+                    (
+                        filtered["False_Positive_Rate"][group_a]
+                        - filtered["False_Positive_Rate"][group_b]
+                    ).abs()
+                    + (
+                        filtered["False_Negative_Rate"][group_a]
+                        - filtered["False_Negative_Rate"][group_b]
+                    ).abs()
                 ).fillna(float("inf"))
                 best_thresh_str = disparity.idxmin()
                 selected_thresholds["optimal_threshold_pair"] = str(best_thresh_str)

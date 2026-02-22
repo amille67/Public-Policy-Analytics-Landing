@@ -46,21 +46,22 @@ def q5(values: ArrayLike) -> pd.Categorical:
     if n_nonnull < 5:
         # Use qcut with duplicates drop and remap to 1..k
         try:
-            _, bins = pd.cut(vals, bins=min(5, n_nonnull), retbins=True)
-            codes = pd.cut(vals, bins=bins, labels=False, include_lowest=True)
+            _, bins = pd.cut(vals, bins=min(5, n_nonnull), retbins=True)  # type: ignore[call-overload]
+            codes_raw = pd.cut(vals, bins=bins, labels=False, include_lowest=True)  # type: ignore[call-overload]
+            codes = np.asarray(codes_raw, dtype=float)
             tiles = (codes + 1).astype(float)
         except Exception:
             # fallback to rank
-            ranks = pd.Series(vals).rank(method="first").values
+            ranks = np.asarray(pd.Series(vals).rank(method="first"), dtype=float)
             tiles = np.floor((ranks - 1) * 5 / n_nonnull).astype(int) + 1
             tiles = np.clip(tiles, 1, 5).astype(float)
     else:
         # Rank-based tiling: equivalent to dplyr::ntile
-        ranks = pd.Series(vals).rank(method="first").values
+        ranks = np.asarray(pd.Series(vals).rank(method="first"), dtype=float)
         tiles = np.floor((ranks - 1) * 5 / n_nonnull).astype(int) + 1
         tiles = np.clip(tiles, 1, 5).astype(float)
 
-    result[non_null_mask.values] = tiles
+    result[np.asarray(non_null_mask.values, dtype=bool)] = tiles
     cat = pd.Categorical(result, categories=[1, 2, 3, 4, 5], ordered=True)
     return cat
 

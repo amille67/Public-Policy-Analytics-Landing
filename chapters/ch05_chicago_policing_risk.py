@@ -22,7 +22,6 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     """Execute the Ch5 pipeline end-to-end."""
     import numpy as np
     import pandas as pd
-    import geopandas as gpd
 
     from ppa.geo.crs import ensure_crs
     from ppa.geo.overlay import clip, sjoin
@@ -53,7 +52,9 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     beats = read_geodataframe(data_root / inputs["beats"])
 
     event_layers = {
-        "abandoned_buildings": read_geodataframe(data_root / inputs["abandoned_buildings"]),
+        "abandoned_buildings": read_geodataframe(
+            data_root / inputs["abandoned_buildings"]
+        ),
         "abandoned_cars": read_geodataframe(data_root / inputs["abandoned_cars"]),
         "graffiti": read_geodataframe(data_root / inputs["graffiti"]),
         "liquor_retail": read_geodataframe(data_root / inputs["liquor_retail"]),
@@ -102,16 +103,24 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         beats = beats.head(sample_n)
 
     # ── 4. Outcome: aggregate burglaries to beats ─────────────────────────────
-    def count_points_in_polys(points_gdf: Any, polys_gdf: Any, id_col: str) -> pd.Series:
-        joined = sjoin(points_gdf, polys_gdf[[id_col, "geometry"]], how="right", predicate="within")
+    def count_points_in_polys(
+        points_gdf: Any, polys_gdf: Any, id_col: str
+    ) -> pd.Series:
+        joined = sjoin(
+            points_gdf, polys_gdf[[id_col, "geometry"]], how="right", predicate="within"
+        )
         return joined.groupby(id_col).size()
 
     logger.info("Aggregating burglaries to beats...")
     beats_with_counts = beats.copy()
     y17_counts = count_points_in_polys(burglaries17, beats, beat_id_col)
     y18_counts = count_points_in_polys(burglaries18, beats, beat_id_col)
-    beats_with_counts["y_2017"] = beats_with_counts[beat_id_col].map(y17_counts).fillna(0).astype(int)
-    beats_with_counts["y_2018"] = beats_with_counts[beat_id_col].map(y18_counts).fillna(0).astype(int)
+    beats_with_counts["y_2017"] = (
+        beats_with_counts[beat_id_col].map(y17_counts).fillna(0).astype(int)
+    )
+    beats_with_counts["y_2018"] = (
+        beats_with_counts[beat_id_col].map(y18_counts).fillna(0).astype(int)
+    )
 
     # ── 5. Exposure features via spatial join counts ──────────────────────────
     buffer_dists = getattr(cfg, "buffer_distances_m", [250, 500, 1000])
@@ -125,14 +134,24 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         for dist in buffer_dists:
             buffered = beats_centroids.copy()
             buffered["geometry"] = buffered.geometry.buffer(dist)
-            joined = sjoin(feat_gdf, buffered[[beat_id_col, "geometry"]], how="right", predicate="within")
+            joined = sjoin(
+                feat_gdf,
+                buffered[[beat_id_col, "geometry"]],
+                how="right",
+                predicate="within",
+            )
             col_name = f"{feat_name}_cnt_d{dist}"
             cnt = joined.groupby(beat_id_col).size()
-            beats_with_counts[col_name] = beats_with_counts[beat_id_col].map(cnt).fillna(0).astype(int)
+            beats_with_counts[col_name] = (
+                beats_with_counts[beat_id_col].map(cnt).fillna(0).astype(int)
+            )
 
     # ── 6. Poisson CV ─────────────────────────────────────────────────────────
-    exposure_cols = [c for c in beats_with_counts.columns
-                     if any(c.endswith(f"d{d}") for d in buffer_dists)]
+    exposure_cols = [
+        c
+        for c in beats_with_counts.columns
+        if any(c.endswith(f"d{d}") for d in buffer_dists)
+    ]
 
     if cv_group_col not in beats_with_counts.columns:
         beats_with_counts[cv_group_col] = "single_group"
@@ -142,7 +161,11 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         beats_with_counts[col] = beats_with_counts[col].fillna(0)
 
     n_groups = beats_with_counts[cv_group_col].nunique()
-    logger.info("Running Poisson CV with %d groups on %d exposure features", n_groups, len(exposure_cols))
+    logger.info(
+        "Running Poisson CV with %d groups on %d exposure features",
+        n_groups,
+        len(exposure_cols),
+    )
 
     if n_groups >= 2 and len(exposure_cols) > 0:
         try:
@@ -152,7 +175,9 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
                 dependent_variable="y_2017",
                 ind_variables=exposure_cols,
             )
-            cv_metrics = regression_metrics(cv_result["y_2017"], cv_result["Prediction"])
+            cv_metrics = regression_metrics(
+                cv_result["y_2017"], cv_result["Prediction"]
+            )
         except Exception as e:
             logger.warning("CV failed: %s; using zeros", e)
             beats_with_counts["Prediction"] = 0.0
@@ -165,8 +190,20 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         cv_metrics = {"mae": 0.0, "rmse": 0.0, "r2": 1.0}
 
     # Temporal validation
-    corr_2018 = float(np.corrcoef(cv_result["Prediction"].astype(float), cv_result["y_2018"])[0, 1]) if "y_2018" in cv_result.columns else float("nan")
-    temporal_metrics = regression_metrics(cv_result["y_2018"], cv_result["Prediction"]) if "y_2018" in cv_result.columns else {}
+    corr_2018 = (
+        float(
+            np.corrcoef(cv_result["Prediction"].astype(float), cv_result["y_2018"])[
+                0, 1
+            ]
+        )
+        if "y_2018" in cv_result.columns
+        else float("nan")
+    )
+    temporal_metrics = (
+        regression_metrics(cv_result["y_2018"], cv_result["Prediction"])
+        if "y_2018" in cv_result.columns
+        else {}
+    )
 
     metrics = {
         "cv_mae": cv_metrics.get("mae"),
@@ -185,7 +222,12 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     mtheme = map_theme(title_size=14)
     try:
         if "Prediction" in cv_result.columns:
-            fig = choropleth_map(cv_result, "Prediction", title="Chicago Burglary Risk (Predicted 2017)", theme=mtheme)
+            fig = choropleth_map(
+                cv_result,
+                "Prediction",
+                title="Chicago Burglary Risk (Predicted 2017)",
+                theme=mtheme,
+            )
             write_figure(fig, fig_dir / "risk_map.png")
     except Exception as e:
         logger.warning("Risk map error: %s", e)

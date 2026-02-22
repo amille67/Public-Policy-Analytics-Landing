@@ -10,7 +10,6 @@ Run:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from pathlib import Path
@@ -27,15 +26,14 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         settings: PPASettings with global settings.
         output_root: Override output directory root.
     """
-    import numpy as np
-
     import geopandas as gpd
+    import numpy as np
     import pandas as pd
     import statsmodels.api as sm
 
     from ppa.geo.crs import ensure_crs
     from ppa.geo.nearest import mean_knn_distance
-    from ppa.io.paths import chapter_figures_dir, chapter_output_dir, raw_data_path
+    from ppa.io.paths import chapter_output_dir
     from ppa.io.readers import read_geodataframe
     from ppa.io.writers import write_figure, write_geoparquet, write_json
     from ppa.stats.quantiles import q5, qbr
@@ -81,17 +79,28 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
                     break
         # Pivot and re-join geometry
         geom_col = tracts.geometry.name
-        tracts_pivot = tracts[[id_col_candidate, long_var_col, long_val_col]].pivot_table(
-            index=id_col_candidate, columns=long_var_col, values=long_val_col, aggfunc="first"
-        ).reset_index()
+        tracts_pivot = (
+            tracts[[id_col_candidate, long_var_col, long_val_col]]
+            .pivot_table(
+                index=id_col_candidate,
+                columns=long_var_col,
+                values=long_val_col,
+                aggfunc="first",
+            )
+            .reset_index()
+        )
         # Get unique geometry per tract
-        geom_df = tracts[[id_col_candidate, geom_col]].drop_duplicates(subset=id_col_candidate)
+        geom_df = tracts[[id_col_candidate, geom_col]].drop_duplicates(
+            subset=id_col_candidate
+        )
         tracts = gpd.GeoDataFrame(
             tracts_pivot.merge(geom_df, on=id_col_candidate, how="left"),
             geometry=geom_col,
             crs=tracts.crs,
         )
-        logger.info("Pivoted tracts: %d rows, %d columns", len(tracts), len(tracts.columns))
+        logger.info(
+            "Pivoted tracts: %d rows, %d columns", len(tracts), len(tracts.columns)
+        )
 
     # ── 2. Reproject ─────────────────────────────────────────────────────────
     broad = ensure_crs(broad, epsg)
@@ -105,17 +114,13 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # ── 4. Feature engineering ────────────────────────────────────────────────
     tract_id_col = getattr(cfg, "tract_id_col", None)
     # Try to find a tract ID column
-    if tract_id_col and tract_id_col in tracts.columns:
-        tract_ids = tracts[tract_id_col].astype(str)
-    else:
+    if not (tract_id_col and tract_id_col in tracts.columns):
         # Auto-detect
         for candidate in ["GEOID10", "GEOID", "tractid", "tract_id", "TRACTCE"]:
             if candidate in tracts.columns:
-                tract_ids = tracts[candidate].astype(str)
                 tract_id_col = candidate
                 break
         else:
-            tract_ids = pd.Series(range(len(tracts)), dtype=str)
             tract_id_col = "tract_id_auto"
 
     # Compute tract centroids
@@ -124,9 +129,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     centroids_xy = np.column_stack(
         [tracts_proj["centroid"].x, tracts_proj["centroid"].y]
     )
-    stations_xy = np.column_stack(
-        [stations_gdf.geometry.x, stations_gdf.geometry.y]
-    )
+    stations_xy = np.column_stack([stations_gdf.geometry.x, stations_gdf.geometry.y])
 
     # Nearest station distance
     k = getattr(cfg, "knn_k", 1)
@@ -136,11 +139,21 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # Find rent column
     rent_col = getattr(cfg, "median_rent_col", None)
     if rent_col and rent_col in tracts_proj.columns:
-        tracts_proj["median_rent"] = pd.to_numeric(tracts_proj[rent_col], errors="coerce")
+        tracts_proj["median_rent"] = pd.to_numeric(
+            tracts_proj[rent_col], errors="coerce"
+        )
     else:
         # Try auto-detect including Census variable codes
-        for candidate in ["medRent", "median_rent", "MedRent", "med_rent", "B25058e1",
-                          "H056001", "B25058_001E", "median_gross_rent"]:
+        for candidate in [
+            "medRent",
+            "median_rent",
+            "MedRent",
+            "med_rent",
+            "B25058e1",
+            "H056001",
+            "B25058_001E",
+            "median_gross_rent",
+        ]:
             if candidate in tracts_proj.columns:
                 tracts_proj["median_rent"] = pd.to_numeric(
                     tracts_proj[candidate], errors="coerce"
@@ -163,14 +176,20 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     if len(model_df) >= 5:
         X = sm.add_constant(model_df[["dist_to_transit_m"]].values)
         y = model_df["median_rent"].values
-        ols = sm.OLS(y, X).fit(cov_type=getattr(cfg, "model", {}).get("robust_se", "HC1") if isinstance(getattr(cfg, "model", None), dict) else "HC1")
+        ols = sm.OLS(y, X).fit(
+            cov_type=(
+                getattr(cfg, "model", {}).get("robust_se", "HC1")
+                if isinstance(getattr(cfg, "model", None), dict)
+                else "HC1"
+            )
+        )
         y_pred = ols.predict(X)
         residuals = y - y_pred
-        ss_res = float(np.sum(residuals ** 2))
+        ss_res = float(np.sum(residuals**2))
         ss_tot = float(np.sum((y - np.mean(y)) ** 2))
         r2 = 1 - ss_res / ss_tot if ss_tot > 0 else float("nan")
         mae = float(np.mean(np.abs(residuals)))
-        rmse = float(np.sqrt(np.mean(residuals ** 2)))
+        rmse = float(np.sqrt(np.mean(residuals**2)))
 
         metrics.update(
             {
@@ -179,9 +198,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
                 "rmse": round(rmse, 4),
                 "coef": {
                     k: float(v)
-                    for k, v in zip(
-                        ["const", "dist_to_transit_m"], ols.params.tolist()
-                    )
+                    for k, v in zip(["const", "dist_to_transit_m"], ols.params.tolist())
                 },
                 "pvalues": {
                     k: float(v)
@@ -194,10 +211,20 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         logger.info("OLS R2=%.4f MAE=%.2f RMSE=%.2f", r2, mae, rmse)
     else:
         logger.warning("Not enough data for modeling (n=%d)", len(model_df))
-        metrics.update({"r2": float("nan"), "mae": float("nan"), "rmse": float("nan"), "coef": {}, "pvalues": {}})
+        metrics.update(
+            {
+                "r2": float("nan"),
+                "mae": float("nan"),
+                "rmse": float("nan"),
+                "coef": {},
+                "pvalues": {},
+            }
+        )
 
     # ── 6. Build output GeoDataFrame ──────────────────────────────────────────
-    out_gdf = tracts_proj[[tract_id_col, "median_rent", "dist_to_transit_m", "rent_q5", "geometry"]].copy()
+    out_gdf = tracts_proj[
+        [tract_id_col, "median_rent", "dist_to_transit_m", "rent_q5", "geometry"]
+    ].copy()
     out_gdf = out_gdf.rename(columns={tract_id_col: "tract_id"})
 
     # ── 7. Save outputs ───────────────────────────────────────────────────────
@@ -259,6 +286,7 @@ def main(argv: list[str] | None = None) -> int:
         cfg.sample = args.sample
     if args.output_root:
         import os
+
         os.environ["PPA_OUTPUT_ROOT"] = args.output_root
 
     log = get_logger(__name__, settings.log_level)

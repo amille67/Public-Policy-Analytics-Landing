@@ -20,12 +20,11 @@ logger = logging.getLogger(__name__)
 
 def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> None:
     """Execute the Ch2 pipeline end-to-end."""
-    import geopandas as gpd
     import pandas as pd
 
     from ppa.geo.buffers import multiple_ring_buffer
     from ppa.geo.crs import ensure_crs
-    from ppa.geo.overlay import clip, sjoin
+    from ppa.geo.overlay import clip
     from ppa.io.readers import read_geodataframe
     from ppa.io.writers import write_csv, write_figure, write_geoparquet, write_parquet
     from ppa.util.reproducibility import set_global_seed
@@ -52,8 +51,13 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     greenspace = read_geodataframe(data_root / inputs["greenspace"])
 
     # ── 2. Reproject ──────────────────────────────────────────────────────────
-    for name, gdf in [("towns", towns), ("ugb", ugb), ("buildings", buildings),
-                      ("boundary", boundary), ("greenspace", greenspace)]:
+    for name, _gdf in [
+        ("towns", towns),
+        ("ugb", ugb),
+        ("buildings", buildings),
+        ("boundary", boundary),
+        ("greenspace", greenspace),
+    ]:
         logger.info("Reprojecting %s...", name)
 
     towns = ensure_crs(towns, epsg)
@@ -80,21 +84,28 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     for _, ring_row in rings_gdf.iterrows():
         d = ring_row["distance"]
         ring_geom = ring_row["geometry"]
-        ring_poly = gpd.GeoDataFrame(geometry=[ring_geom], crs=f"EPSG:{epsg}")
-
         b_in_ring = buildings_clipped[buildings_clipped.geometry.intersects(ring_geom)]
-        g_in_ring = greenspace_clipped[greenspace_clipped.geometry.intersects(ring_geom)]
+        g_in_ring = greenspace_clipped[
+            greenspace_clipped.geometry.intersects(ring_geom)
+        ]
 
         b_count = len(b_in_ring)
-        b_area = float(b_in_ring.geometry.area.sum()) if len(b_in_ring) > 0 and b_in_ring.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).any() else None
+        b_area = (
+            float(b_in_ring.geometry.area.sum())
+            if len(b_in_ring) > 0
+            and b_in_ring.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).any()
+            else None
+        )
         g_area = float(g_in_ring.geometry.area.sum()) if len(g_in_ring) > 0 else 0.0
 
-        ring_rows.append({
-            "distance": d,
-            "building_count": b_count,
-            "building_area_m2": b_area,
-            "greenspace_area_m2": g_area,
-        })
+        ring_rows.append(
+            {
+                "distance": d,
+                "building_count": b_count,
+                "building_area_m2": b_area,
+                "greenspace_area_m2": g_area,
+            }
+        )
 
     ring_metrics = pd.DataFrame(ring_rows)
 
@@ -106,28 +117,27 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
                 town_id_col = cand
                 break
 
-    ugb_union = gpd.GeoDataFrame(geometry=[ugb_geom], crs=f"EPSG:{epsg}")
-    towns_with_ugb = sjoin(towns, ugb_union, how="left", predicate="intersects")
-
     # Compute inside/outside UGB building counts per town
     town_metrics_rows = []
     for _, town in towns.iterrows():
         town_geom = town.geometry
         b_in_town = buildings_clipped[buildings_clipped.geometry.intersects(town_geom)]
         b_inside = buildings_clipped[
-            buildings_clipped.geometry.intersects(town_geom) &
-            buildings_clipped.geometry.intersects(ugb_geom)
+            buildings_clipped.geometry.intersects(town_geom)
+            & buildings_clipped.geometry.intersects(ugb_geom)
         ]
         inside_cnt = len(b_inside)
         outside_cnt = len(b_in_town) - inside_cnt
         sprawl = outside_cnt / inside_cnt if inside_cnt > 0 else float("nan")
 
-        town_metrics_rows.append({
-            "town_id": str(town[town_id_col]) if town_id_col else str(town.name),
-            "buildings_inside_ugb": inside_cnt,
-            "buildings_outside_ugb": outside_cnt,
-            "sprawl_index": sprawl,
-        })
+        town_metrics_rows.append(
+            {
+                "town_id": str(town[town_id_col]) if town_id_col else str(town.name),
+                "buildings_inside_ugb": inside_cnt,
+                "buildings_outside_ugb": outside_cnt,
+                "sprawl_index": sprawl,
+            }
+        )
 
     town_metrics = pd.DataFrame(town_metrics_rows)
 
@@ -140,15 +150,24 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     mtheme = map_theme(title_size=24)
     try:
         if len(rings_gdf) > 0 and "distance" in rings_gdf.columns:
-            fig = choropleth_map(rings_gdf, "distance", title="UGB Ring Buffers", theme=mtheme)
+            fig = choropleth_map(
+                rings_gdf, "distance", title="UGB Ring Buffers", theme=mtheme
+            )
             write_figure(fig, fig_dir / "ugb_rings.png")
     except Exception as e:
         logger.warning("Ring map error: %s", e)
 
     try:
         if not town_metrics.empty and "sprawl_index" in town_metrics.columns:
-            towns_merged = towns.merge(town_metrics, left_on=town_id_col or "NAME", right_on="town_id", how="left")
-            fig2 = choropleth_map(towns_merged, "sprawl_index", title="Town Sprawl Index", theme=mtheme)
+            towns_merged = towns.merge(
+                town_metrics,
+                left_on=town_id_col or "NAME",
+                right_on="town_id",
+                how="left",
+            )
+            fig2 = choropleth_map(
+                towns_merged, "sprawl_index", title="Town Sprawl Index", theme=mtheme
+            )
             write_figure(fig2, fig_dir / "town_sprawl_index.png")
     except Exception as e:
         logger.warning("Town sprawl map error: %s", e)

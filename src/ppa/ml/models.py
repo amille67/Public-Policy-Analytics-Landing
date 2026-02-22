@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 def fit_linear_regression(
-    X: "Any",
-    y: "Any",
+    X: Any,
+    y: Any,
     *,
     log_transform: bool = False,
     robust_se: str = "HC1",
-) -> "Any":
+) -> Any:
     """Fit an OLS regression model using statsmodels.
 
     Args:
@@ -44,13 +44,13 @@ def fit_linear_regression(
 
 
 def fit_random_forest(
-    X: "Any",
-    y: "Any",
+    X: Any,
+    y: Any,
     *,
     n_estimators: int = 100,
     max_depth: int | None = None,
     seed: int = 42,
-) -> "Any":
+) -> Any:
     """Fit a RandomForestRegressor.
 
     Args:
@@ -77,13 +77,13 @@ def fit_random_forest(
 
 
 def fit_logistic_regression(
-    X: "Any",
-    y: "Any",
+    X: Any,
+    y: Any,
     *,
     C: float = 1.0,
     max_iter: int = 2000,
     seed: int = 42,
-) -> "Any":
+) -> Any:
     """Fit a LogisticRegression classifier.
 
     Args:
@@ -107,13 +107,13 @@ def fit_logistic_regression(
 
 
 def fit_gradient_boosting(
-    X: "Any",
-    y: "Any",
+    X: Any,
+    y: Any,
     *,
     n_estimators: int = 100,
     max_depth: int = 3,
     seed: int = 42,
-) -> "Any":
+) -> Any:
     """Fit a GradientBoostingRegressor.
 
     Args:

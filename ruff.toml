@@ -3,9 +3,14 @@ target-version = "py311"
 
 [lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "N", "RUF"]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    "B905",   # zip() without strict= — ML/data code; False is the safe default
+]
 mccabe.max-complexity = 10
 
 [lint.per-file-ignores]
-"tests/*" = ["S101", "N802"]
+"tests/**" = ["S101", "N802", "N803", "N806"]
 "chapters/*" = ["N803", "N806"]
+"src/ppa/ml/*.py" = ["N803", "N806"]   # X, C, X_train etc. are ML conventions
+"src/ppa/geo/buffers.py" = ["N806"]

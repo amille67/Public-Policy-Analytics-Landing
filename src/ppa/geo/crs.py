@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ REGION_CRS: dict[str, int] = {
 }
 
 
-def assert_projected_crs(gdf: "Any", *, where: str = "") -> None:
+def assert_projected_crs(gdf: Any, *, where: str = "") -> None:
     """Assert that a GeoDataFrame has a projected (non-geographic) CRS.
 
     Args:
@@ -28,7 +29,9 @@ def assert_projected_crs(gdf: "Any", *, where: str = "") -> None:
     from ppa.util.errors import InvalidCRSError
 
     if gdf.crs is None:
-        raise InvalidCRSError(f"GeoDataFrame has no CRS set{' at ' + where if where else ''}")
+        raise InvalidCRSError(
+            f"GeoDataFrame has no CRS set{' at ' + where if where else ''}"
+        )
     if gdf.crs.is_geographic:
         raise InvalidCRSError(
             f"GeoDataFrame has geographic CRS {gdf.crs} at {where!r}. "
@@ -36,7 +39,7 @@ def assert_projected_crs(gdf: "Any", *, where: str = "") -> None:
         )
 
 
-def ensure_crs(gdf: "Any", target_epsg: int) -> "Any":
+def ensure_crs(gdf: Any, target_epsg: int) -> Any:
     """Ensure a GeoDataFrame is in the target CRS, reprojecting if needed.
 
     Args:
@@ -47,7 +50,9 @@ def ensure_crs(gdf: "Any", target_epsg: int) -> "Any":
         GeoDataFrame in target CRS.
     """
     if gdf.crs is None:
-        logger.warning("GeoDataFrame has no CRS; assuming EPSG:4326 before reprojection")
+        logger.warning(
+            "GeoDataFrame has no CRS; assuming EPSG:4326 before reprojection"
+        )
         gdf = gdf.set_crs(epsg=4326)
 
     if gdf.crs.to_epsg() != target_epsg:
@@ -56,7 +61,7 @@ def ensure_crs(gdf: "Any", target_epsg: int) -> "Any":
     return gdf
 
 
-def to_projected_meters(gdf: "Any", *, region: str) -> "Any":
+def to_projected_meters(gdf: Any, *, region: str) -> Any:
     """Reproject a GeoDataFrame to the standard meter CRS for a region.
 
     Args:

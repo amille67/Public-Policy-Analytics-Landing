@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> None:
     """Execute the Ch4 pipeline end-to-end."""
+    import geopandas as gpd
     import numpy as np
     import pandas as pd
-    import geopandas as gpd
 
     from ppa.geo.crs import ensure_crs
     from ppa.geo.nearest import mean_knn_distance
@@ -46,9 +46,8 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     inputs = cfg.inputs
 
     # ── 1. Load data (reuse Ch3 logic) ────────────────────────────────────────
-    houses_df = read_csv(data_root / inputs["houses"])
-    crimes_df = read_csv(data_root / inputs["crimes"])
-    nhoods_gdf = read_geodataframe(data_root / inputs["nhoods"])
+    houses_df = read_csv(data_root / inputs["houses"], encoding="latin-1")
+    crimes_df = read_csv(data_root / inputs["crimes"], encoding="latin-1")
 
     sample_n = getattr(cfg, "sample", None)
     if sample_n:
@@ -81,21 +80,38 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         crs="EPSG:4326",
     )
     houses_gdf = ensure_crs(houses_gdf, epsg)
-    nhoods_gdf = ensure_crs(nhoods_gdf, epsg)
 
-    nhood_id_col = None
-    for c in ["Name", "NAME", "Neighborhood", "neighborhood"]:
-        if c in nhoods_gdf.columns:
-            nhood_id_col = c
-            break
-
-    houses_j = sjoin(houses_gdf, nhoods_gdf, how="left", predicate="within")
-    if nhood_id_col and nhood_id_col + "_right" in houses_j.columns:
-        houses_j["nhood_id"] = houses_j[nhood_id_col + "_right"]
-    elif nhood_id_col and nhood_id_col in houses_j.columns:
-        houses_j["nhood_id"] = houses_j[nhood_id_col]
+    # Spatial join to neighborhoods (optional — fall back to spatial grid)
+    nhoods_path = data_root / inputs.get("nhoods", "")
+    if nhoods_path.exists():
+        nhoods_gdf = read_geodataframe(nhoods_path)
+        nhoods_gdf = ensure_crs(nhoods_gdf, epsg)
+        nhood_id_col = None
+        for c in ["Name", "NAME", "Neighborhood", "neighborhood"]:
+            if c in nhoods_gdf.columns:
+                nhood_id_col = c
+                break
+        houses_j = sjoin(houses_gdf, nhoods_gdf, how="left", predicate="within")
+        if nhood_id_col and nhood_id_col + "_right" in houses_j.columns:
+            houses_j["nhood_id"] = houses_j[nhood_id_col + "_right"]
+        elif nhood_id_col and nhood_id_col in houses_j.columns:
+            houses_j["nhood_id"] = houses_j[nhood_id_col]
+        else:
+            houses_j["nhood_id"] = "unknown"
     else:
-        houses_j["nhood_id"] = "unknown"
+        logger.warning(
+            "Nhoods file not found at %s; using spatial grid cells", nhoods_path
+        )
+        houses_j = houses_gdf.copy()
+        x_bins = np.searchsorted(
+            np.linspace(houses_gdf.geometry.x.min(), houses_gdf.geometry.x.max(), 6),
+            np.asarray(houses_gdf.geometry.x),
+        ).clip(0, 4)
+        y_bins = np.searchsorted(
+            np.linspace(houses_gdf.geometry.y.min(), houses_gdf.geometry.y.max(), 6),
+            np.asarray(houses_gdf.geometry.y),
+        ).clip(0, 4)
+        houses_j["nhood_id"] = (x_bins * 5 + y_bins).astype(str)
 
     crime_lon = getattr(cfg, "crime_lon_col", "Long")
     crime_lat = getattr(cfg, "crime_lat_col", "Lat")
@@ -130,16 +146,20 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # ── 2. Spatial CV: leave-one-neighborhood-out ─────────────────────────────
     exclude = {target_col, lon_col, lat_col, "geometry", "nhood_id"}
     numeric_cols = [
-        c for c in houses_j.select_dtypes(include="number").columns
+        c
+        for c in houses_j.select_dtypes(include="number").columns
         if c not in exclude and "Unnamed" not in c
     ]
-    feature_cols = list(set(numeric_cols + ["crime_knn_mean_dist_m"]))
+    feature_cols = list(set([*numeric_cols, "crime_knn_mean_dist_m"]))
 
-    feat_df = houses_j[feature_cols + [target_col, "nhood_id"]].dropna()
+    feat_df = houses_j[[*feature_cols, target_col, "nhood_id"]].dropna()
 
     if len(feat_df) < 10:
         logger.warning("Too few rows after dropna; skipping CV")
-        write_json({"cv_rmse": None, "cv_mae": None, "cv_r2": None}, out_dir / "model_metrics.json")
+        write_json(
+            {"cv_rmse": None, "cv_mae": None, "cv_r2": None},
+            out_dir / "model_metrics.json",
+        )
         write_parquet(feat_df, out_dir / "cv_predictions.parquet")
         return
 
@@ -161,9 +181,11 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
         train = train.copy()
         test = test.copy()
         train["nhood_mean_price"] = train["nhood_id"].map(nhood_means)
-        test["nhood_mean_price"] = test["nhood_id"].map(nhood_means).fillna(train[target_col].mean())
+        test["nhood_mean_price"] = (
+            test["nhood_id"].map(nhood_means).fillna(train[target_col].mean())
+        )
 
-        fcols_spatial = feature_cols + ["nhood_mean_price"]
+        fcols_spatial = [*feature_cols, "nhood_mean_price"]
 
         model = fit_random_forest(
             train[fcols_spatial].values,
@@ -172,12 +194,14 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
             seed=settings.seed,
         )
         preds = model.predict(test[fcols_spatial].values)
-        fold_df = pd.DataFrame({
-            "y_true": test[target_col].values,
-            "y_pred": preds,
-            "nhood_id": nhood,
-            "fold_id": nhood,
-        })
+        fold_df = pd.DataFrame(
+            {
+                "y_true": test[target_col].values,
+                "y_pred": preds,
+                "nhood_id": nhood,
+                "fold_id": nhood,
+            }
+        )
         cv_preds.append(fold_df)
 
     if not cv_preds:
@@ -210,6 +234,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # Figure
     try:
         import matplotlib.pyplot as plt
+
         ptheme = plot_theme(title_size=14)
         with plt.rc_context(ptheme):
             fig, ax = plt.subplots(figsize=(10, 6))
@@ -224,7 +249,11 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     except Exception as e:
         logger.warning("Figure error: %s", e)
 
-    logger.info("Ch04 complete. CV RMSE=%.2f R2=%.4f", global_metrics["rmse"], global_metrics["r2"])
+    logger.info(
+        "Ch04 complete. CV RMSE=%.2f R2=%.4f",
+        global_metrics["rmse"],
+        global_metrics["r2"],
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

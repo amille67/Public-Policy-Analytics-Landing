@@ -75,11 +75,7 @@ def iterate_fairness(
         )
 
     # Get predicted probabilities
-    if feature_cols is not None:
-        X = data[feature_cols]
-    else:
-        # Try passing full data to model; model must handle it
-        X = data
+    X = data[feature_cols] if feature_cols is not None else data
 
     if hasattr(regression, "predict_proba"):
         probs = regression.predict_proba(X)[:, 1]
@@ -90,7 +86,9 @@ def iterate_fairness(
 
     probs = np.asarray(probs, dtype=float)
     if np.any(probs < 0) or np.any(probs > 1):
-        raise ValueError("Model predictions are outside [0, 1]; cannot use as probabilities")
+        raise ValueError(
+            "Model predictions are outside [0, 1]; cannot use as probabilities"
+        )
 
     # Build threshold grid: match R's seq(0.1, 1, threshold_by) — stops at <= 1.0
     thresh_range = np.arange(0.1, 1.0 + threshold_by / 100, threshold_by)
@@ -117,7 +115,10 @@ def iterate_fairness(
 
         threshold_str = f"{round(float(ta), 10)}, {round(float(tb), 10)}"
 
-        for g_val, g_mask in [(group_a, groups == group_a), (group_b, groups == group_b)]:
+        for g_val, g_mask in [
+            (group_a, groups == group_a),
+            (group_b, groups == group_b),
+        ]:
             obs_g = observed[g_mask]
             pred_g = predicted[g_mask]
 

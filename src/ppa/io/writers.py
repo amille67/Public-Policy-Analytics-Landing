@@ -16,7 +16,7 @@ def _ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def write_geoparquet(gdf: "Any", path: Path) -> None:
+def write_geoparquet(gdf: Any, path: Path) -> None:
     """Write a GeoDataFrame to geoparquet.
 
     Args:
@@ -65,7 +65,7 @@ def write_json(obj: Any, path: Path) -> None:
     logger.info("Wrote JSON: %s", path)
 
 
-def write_figure(fig: "Any", path: Path, dpi: int = 150) -> None:
+def write_figure(fig: Any, path: Path, dpi: int = 150) -> None:
     """Write a matplotlib figure to a PNG file.
 
     Args:

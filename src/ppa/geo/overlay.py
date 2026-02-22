@@ -8,7 +8,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def clip(gdf: "Any", mask: "Any") -> "Any":
+def clip(gdf: Any, mask: Any) -> Any:
     """Clip a GeoDataFrame to the bounds of a mask geometry/GeoDataFrame.
 
     Args:
@@ -26,11 +26,11 @@ def clip(gdf: "Any", mask: "Any") -> "Any":
 
 
 def sjoin(
-    left: "Any",
-    right: "Any",
+    left: Any,
+    right: Any,
     how: str = "left",
     predicate: str = "intersects",
-) -> "Any":
+) -> Any:
     """Spatial join wrapper with stable column naming.
 
     Args:
@@ -54,12 +54,12 @@ def sjoin(
 
 
 def sjoin_nearest(
-    left: "Any",
-    right: "Any",
+    left: Any,
+    right: Any,
     how: str = "left",
     max_distance: float | None = None,
     distance_col: str | None = None,
-) -> "Any":
+) -> Any:
     """Nearest spatial join with fallback.
 
     Args:

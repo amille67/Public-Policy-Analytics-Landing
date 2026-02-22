@@ -1,6 +1,5 @@
 """Unit tests for ppa.ml.thresholds: iterate_thresholds."""
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -33,9 +32,16 @@ class TestIterateThresholds:
         df = make_fixture_df()
         result = iterate_thresholds(df, "observed", "prob")
         required = {
-            "Count_TN", "Count_TP", "Count_FN", "Count_FP",
-            "Rate_TP", "Rate_FP", "Rate_FN", "Rate_TN",
-            "Accuracy", "Threshold",
+            "Count_TN",
+            "Count_TP",
+            "Count_FN",
+            "Count_FP",
+            "Rate_TP",
+            "Rate_FP",
+            "Rate_FN",
+            "Rate_TN",
+            "Accuracy",
+            "Threshold",
         }
         assert required.issubset(set(result.columns))
 

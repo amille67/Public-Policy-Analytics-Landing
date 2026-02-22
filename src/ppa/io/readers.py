@@ -11,7 +11,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def read_geodataframe(path: Path, **kwargs: Any) -> "Any":
+def read_geodataframe(path: Path, **kwargs: Any) -> Any:
     """Read a geospatial file into a GeoDataFrame.
 
     Args:
@@ -61,9 +61,9 @@ def read_csv(
     if not Path(path).exists():
         raise FileNotFoundError(f"CSV file not found: {path}")
 
-    df = pd.read_csv(
+    df: pd.DataFrame = pd.read_csv(  # type: ignore[assignment]
         path,
-        dtype=dtypes,
+        dtype=dtypes,  # type: ignore[arg-type]
         parse_dates=parse_dates or [],
         **kwargs,
     )

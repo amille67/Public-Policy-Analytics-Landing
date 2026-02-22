@@ -63,4 +63,4 @@ def mean_knn_distance(
     nn.fit(to_arr)
     distances, _ = nn.kneighbors(from_arr)
 
-    return distances.mean(axis=1)
+    return distances.mean(axis=1)  # type: ignore[no-any-return]

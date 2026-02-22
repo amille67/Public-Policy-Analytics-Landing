@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> None:
     """Execute the Ch8 pipeline end-to-end."""
-    import numpy as np
     import pandas as pd
 
     from ppa.io.readers import read_csv
@@ -46,6 +45,9 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # ── 1. Load ───────────────────────────────────────────────────────────────
     df = read_csv(data_root / inputs["trips"])
 
+    # Normalize column names (dots→underscores, lowercase) for Chicago data portal CSVs
+    df.columns = [c.replace(".", "_").lower().strip() for c in df.columns]
+
     sample_n = getattr(cfg, "sample", None)
     if sample_n:
         df = df.head(sample_n)
@@ -56,13 +58,21 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
             dt_col = c
             break
 
-    for c in [spatial_col, "pickup_community_area", "community_area", "zone_id"]:
+    for c in [
+        spatial_col,
+        "pickup_census_tract",
+        "pickup_community_area",
+        "community_area",
+        "zone_id",
+    ]:
         if c in df.columns:
             spatial_col = c
             break
 
     if dt_col not in df.columns:
-        raise ValueError(f"Datetime column '{dt_col}' not found. Columns: {list(df.columns)}")
+        raise ValueError(
+            f"Datetime column '{dt_col}' not found. Columns: {list(df.columns)}"
+        )
 
     df[dt_col] = pd.to_datetime(df[dt_col], errors="coerce")
     df = df.dropna(subset=[dt_col])
@@ -75,11 +85,7 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     df["ts_hour"] = df[dt_col].dt.floor("h")
 
     # ── 2. Aggregate to hourly demand ─────────────────────────────────────────
-    demand = (
-        df.groupby([spatial_col, "ts_hour"])
-        .size()
-        .reset_index(name="demand")
-    )
+    demand = df.groupby([spatial_col, "ts_hour"]).size().reset_index(name="demand")
     demand = demand.sort_values([spatial_col, "ts_hour"])
 
     # ── 3. Feature engineering ────────────────────────────────────────────────
@@ -91,13 +97,11 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     demand = demand.sort_values([spatial_col, "ts_hour"]).copy()
     demand["lag_1h"] = demand.groupby(spatial_col)["demand"].shift(1)
     demand["lag_24h"] = demand.groupby(spatial_col)["demand"].shift(24)
-    demand["rollmean_6h"] = (
-        demand.groupby(spatial_col)["demand"]
-        .transform(lambda x: x.shift(1).rolling(6, min_periods=1).mean())
+    demand["rollmean_6h"] = demand.groupby(spatial_col)["demand"].transform(
+        lambda x: x.shift(1).rolling(6, min_periods=1).mean()
     )
-    demand["rollmean_24h"] = (
-        demand.groupby(spatial_col)["demand"]
-        .transform(lambda x: x.shift(1).rolling(24, min_periods=1).mean())
+    demand["rollmean_24h"] = demand.groupby(spatial_col)["demand"].transform(
+        lambda x: x.shift(1).rolling(24, min_periods=1).mean()
     )
 
     # ── 4. Train/test split by time ───────────────────────────────────────────
@@ -107,11 +111,23 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     train_df = demand[demand["ts_hour"] <= test_cutoff].dropna()
     test_df = demand[demand["ts_hour"] > test_cutoff].dropna()
 
-    feature_cols = ["hour", "dow", "weekend", "lag_1h", "lag_24h", "rollmean_6h", "rollmean_24h"]
+    feature_cols = [
+        "hour",
+        "dow",
+        "weekend",
+        "lag_1h",
+        "lag_24h",
+        "rollmean_6h",
+        "rollmean_24h",
+    ]
     target = "demand"
 
     if len(train_df) < 5 or len(test_df) == 0:
-        logger.warning("Insufficient data after split (train=%d, test=%d)", len(train_df), len(test_df))
+        logger.warning(
+            "Insufficient data after split (train=%d, test=%d)",
+            len(train_df),
+            len(test_df),
+        )
         write_parquet(demand, out_dir / "time_series.parquet")
         write_json({"rmse": None, "mae": None}, out_dir / "model_metrics.json")
         return
@@ -135,12 +151,14 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     y_pred = model.predict(test_df[feature_cols].values)
     metrics = regression_metrics(test_df[target].values, y_pred)
 
-    preds_df = pd.DataFrame({
-        spatial_col: test_df[spatial_col].values,
-        "ts": test_df["ts_hour"].values,
-        "y_true": test_df[target].values,
-        "y_pred": y_pred,
-    })
+    preds_df = pd.DataFrame(
+        {
+            spatial_col: test_df[spatial_col].values,
+            "ts": test_df["ts_hour"].values,
+            "y_true": test_df[target].values,
+            "y_pred": y_pred,
+        }
+    )
 
     # ── 5. Save ───────────────────────────────────────────────────────────────
     write_parquet(demand, out_dir / "time_series.parquet")
@@ -150,10 +168,15 @@ def build_pipeline(cfg: Any, settings: Any, output_root: Path | None = None) -> 
     # Figure: top 3 spatial units
     try:
         import matplotlib.pyplot as plt
+
         ptheme = plot_theme(title_size=14)
-        top_units = preds_df.groupby(spatial_col)["y_true"].sum().nlargest(3).index.tolist()
+        top_units = (
+            preds_df.groupby(spatial_col)["y_true"].sum().nlargest(3).index.tolist()
+        )
         with plt.rc_context(ptheme):
-            fig, axes = plt.subplots(len(top_units), 1, figsize=(12, 4 * len(top_units)))
+            fig, axes = plt.subplots(
+                len(top_units), 1, figsize=(12, 4 * len(top_units))
+            )
             if len(top_units) == 1:
                 axes = [axes]
             for ax, unit in zip(axes, top_units):

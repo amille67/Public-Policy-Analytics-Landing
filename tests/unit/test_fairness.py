@@ -21,13 +21,18 @@ class DummyModel:
 
 def make_fixture(seed: int = 42) -> tuple[pd.DataFrame, DummyModel]:
     """8-row fixture with 2 races and fixed probabilities."""
-    rng = np.random.default_rng(seed)
     data = pd.DataFrame(
         {
             "race": ["African-American"] * 4 + ["Caucasian"] * 4,
             "Recidivated": [
-                "Recidivate", "Recidivate", "notRecidivate", "notRecidivate",
-                "Recidivate", "notRecidivate", "notRecidivate", "notRecidivate",
+                "Recidivate",
+                "Recidivate",
+                "notRecidivate",
+                "notRecidivate",
+                "Recidivate",
+                "notRecidivate",
+                "notRecidivate",
+                "notRecidivate",
             ],
         }
     )
@@ -58,10 +63,15 @@ class TestIterateFairness:
         data, model = make_fixture()
         result = iterate_fairness(data, model, threshold_by=0.1)
         required = {
-            "race", "True_Negative", "True_Positive",
-            "False_Negative", "False_Positive",
-            "False_Positive_Rate", "False_Negative_Rate",
-            "Accuracy", "threshold",
+            "race",
+            "True_Negative",
+            "True_Positive",
+            "False_Negative",
+            "False_Positive",
+            "False_Positive_Rate",
+            "False_Negative_Rate",
+            "Accuracy",
+            "threshold",
         }
         assert required.issubset(set(result.columns))
 
@@ -71,8 +81,18 @@ class TestIterateFairness:
         # Use threshold_by=0.1 and check at threshold pair "0.5, 0.5"
         data = pd.DataFrame(
             {
-                "race": ["African-American", "African-American", "Caucasian", "Caucasian"],
-                "Recidivated": ["Recidivate", "notRecidivate", "Recidivate", "notRecidivate"],
+                "race": [
+                    "African-American",
+                    "African-American",
+                    "Caucasian",
+                    "Caucasian",
+                ],
+                "Recidivated": [
+                    "Recidivate",
+                    "notRecidivate",
+                    "Recidivate",
+                    "notRecidivate",
+                ],
             }
         )
         # All probs = 0.5

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -10,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 def multiple_ring_buffer(
-    input_polygon: "Any",
+    input_polygon: Any,
     max_distance: float,
     interval: float,
-) -> "Any":
+) -> Any:
     """Create donut-shaped ring buffers around a polygon.
 
     This is the Python equivalent of the R ``multipleRingBuffer`` helper.

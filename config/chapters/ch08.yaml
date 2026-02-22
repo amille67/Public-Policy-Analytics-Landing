@@ -4,7 +4,7 @@ sample: null
 inputs:
   trips: "Chapter8/chicago_rideshare_trips_nov_dec_18_clean_sample.csv"
 pickup_datetime_col: "trip_start_timestamp"
-spatial_unit_col: "pickup_community_area"
+spatial_unit_col: "pickup_census_tract"
 test_days: 14
 model:
   type: "gradient_boosting"

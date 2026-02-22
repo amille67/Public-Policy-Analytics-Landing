@@ -41,15 +41,11 @@ class TestMeanKnnDistance:
 
     def test_raises_on_nan_inputs_from(self) -> None:
         with pytest.raises(ValueError, match="NaN"):
-            mean_knn_distance(
-                np.array([[np.nan, 0.0]]), np.array([[1.0, 1.0]]), k=1
-            )
+            mean_knn_distance(np.array([[np.nan, 0.0]]), np.array([[1.0, 1.0]]), k=1)
 
     def test_raises_on_nan_inputs_to(self) -> None:
         with pytest.raises(ValueError, match="NaN"):
-            mean_knn_distance(
-                np.array([[0.0, 0.0]]), np.array([[np.nan, 1.0]]), k=1
-            )
+            mean_knn_distance(np.array([[0.0, 0.0]]), np.array([[np.nan, 1.0]]), k=1)
 
     def test_raises_on_dimension_mismatch(self) -> None:
         with pytest.raises(ValueError, match="mismatch"):

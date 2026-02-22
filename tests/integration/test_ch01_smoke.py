@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-
 DATA_ROOT = Path("data/raw/DATA")
 CH01_DATA = DATA_ROOT / "Chapter1"
 REQUIRED_DATA = [
@@ -28,13 +27,15 @@ def data_available() -> bool:
     return all(p.exists() for p in REQUIRED_DATA)
 
 
-@pytest.mark.skipif(not data_available(), reason="Ch01 data not available in data/raw/DATA")
+@pytest.mark.skipif(
+    not data_available(), reason="Ch01 data not available in data/raw/DATA"
+)
 def test_ch01_smoke(tmp_path: Path) -> None:
     """Full smoke run: outputs exist and pass schema checks."""
     import geopandas as gpd
 
-    from ppa.util.config import ChapterConfig, PPASettings, load_chapter_config
     from chapters.ch01_transit_indicators import build_pipeline
+    from ppa.util.config import ChapterConfig, PPASettings, load_chapter_config
 
     settings = PPASettings(
         data_root=DATA_ROOT,
@@ -71,7 +72,13 @@ def test_ch01_smoke(tmp_path: Path) -> None:
 
     # ── Schema checks ─────────────────────────────────────────────────────────
     gdf = gpd.read_parquet(out_dir / "features.geoparquet")
-    required_cols = {"tract_id", "median_rent", "dist_to_transit_m", "rent_q5", "geometry"}
+    required_cols = {
+        "tract_id",
+        "median_rent",
+        "dist_to_transit_m",
+        "rent_q5",
+        "geometry",
+    }
     missing = required_cols - set(gdf.columns)
     assert not missing, f"Missing columns in features.geoparquet: {missing}"
 
@@ -80,10 +87,14 @@ def test_ch01_smoke(tmp_path: Path) -> None:
     assert gdf.crs.to_epsg() == 26918, f"Expected EPSG:26918, got {gdf.crs.to_epsg()}"
 
     # ── Numeric constraint checks ─────────────────────────────────────────────
-    assert (gdf["dist_to_transit_m"].dropna() >= 0).all(), "dist_to_transit_m has negative values"
+    assert (
+        gdf["dist_to_transit_m"].dropna() >= 0
+    ).all(), "dist_to_transit_m has negative values"
     valid_q5 = gdf["rent_q5"].dropna()
     if len(valid_q5) > 0:
-        assert valid_q5.astype(float).between(1, 5).all(), "rent_q5 values outside [1,5]"
+        assert (
+            valid_q5.astype(float).between(1, 5).all()
+        ), "rent_q5 values outside [1,5]"
 
     # ── Metrics JSON check ────────────────────────────────────────────────────
     with open(out_dir / "model_metrics.json") as f:
@@ -97,11 +108,10 @@ def test_ch01_smoke(tmp_path: Path) -> None:
 @pytest.mark.skipif(not data_available(), reason="Ch01 data not available")
 def test_ch01_deterministic(tmp_path: Path) -> None:
     """Run twice with same seed; metrics should be identical."""
-    import geopandas as gpd
     import json
 
-    from ppa.util.config import ChapterConfig, PPASettings
     from chapters.ch01_transit_indicators import build_pipeline
+    from ppa.util.config import ChapterConfig, PPASettings
 
     def run_pipeline(out: Path) -> dict:
         settings = PPASettings(data_root=DATA_ROOT, output_root=out, seed=42)

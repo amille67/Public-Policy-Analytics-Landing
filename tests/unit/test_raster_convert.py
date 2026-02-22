@@ -1,7 +1,5 @@
 """Unit tests for ppa.raster.convert: rast_to_df."""
 
-import math
-
 import numpy as np
 import pytest
 
@@ -12,7 +10,6 @@ def make_in_memory_raster(
     transform=None,
 ):
     """Create an in-memory rasterio dataset from a numpy array."""
-    import rasterio
     from rasterio.io import MemoryFile
     from rasterio.transform import from_bounds
 
@@ -66,8 +63,8 @@ class TestRastToDf:
 
     def test_coordinate_centers(self) -> None:
         try:
-            import rasterio
             from rasterio.transform import from_origin
+
             from ppa.raster.convert import rast_to_df
         except ImportError:
             pytest.skip("rasterio not installed")

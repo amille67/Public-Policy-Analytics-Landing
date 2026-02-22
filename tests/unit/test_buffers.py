@@ -1,9 +1,6 @@
 """Unit tests for ppa.geo.buffers: multiple_ring_buffer."""
 
-import math
-
 import pytest
-from shapely.geometry import Point
 
 from ppa.geo.buffers import multiple_ring_buffer
 
@@ -11,6 +8,7 @@ from ppa.geo.buffers import multiple_ring_buffer
 def make_square(size: float = 100.0):
     """Create a simple square polygon centered at origin."""
     from shapely.geometry import box
+
     return box(0, 0, size, size)
 
 
@@ -48,6 +46,7 @@ class TestMultipleRingBuffer:
 
     def test_returns_geodataframe(self) -> None:
         import geopandas as gpd
+
         poly = make_square(100.0)
         gdf = multiple_ring_buffer(poly, max_distance=200, interval=100)
         assert isinstance(gdf, gpd.GeoDataFrame)
@@ -65,6 +64,7 @@ class TestMultipleRingBuffer:
     def test_negative_interval_inward_rings(self) -> None:
         # Inward (negative) buffers on a large polygon
         from shapely.geometry import box
+
         big_poly = box(0, 0, 1000, 1000)
         gdf = multiple_ring_buffer(big_poly, max_distance=-200, interval=-100)
         assert len(gdf) == 2
