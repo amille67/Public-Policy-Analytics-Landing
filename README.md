@@ -15,24 +15,46 @@ Original repo: <https://github.com/urbanSpatial/Public-Policy-Analytics-Landing>
 
 ## Installation
 
-### Prerequisites
+> **Import name:** `import ppa` — the distribution is named `ppa` on PyPI
+> and maps directly to the importable package `ppa`.
 
-- Python 3.11+
-- `pip` or [`uv`](https://github.com/astral-sh/uv) for dependency management
+### Option A — conda / mamba (recommended for GDAL-heavy environments)
 
-### Quick Start
+`geopandas` and `rasterio` link against system GDAL, which `conda-forge`
+handles cleanly.  This is the fastest path on Apple Silicon and Windows.
 
 ```bash
-# Clone the repository
+conda create -n ppa python=3.12 -c conda-forge
+conda activate ppa
+conda install -c conda-forge geopandas rasterio pyproj rtree shapely
+git clone https://github.com/amille67/Public-Policy-Analytics-Landing.git
+cd Public-Policy-Analytics-Landing
+pip install -e ".[dev]"   # remaining pure-Python deps
+```
+
+### Option B — pip / uv (Linux + most CI environments)
+
+```bash
 git clone https://github.com/amille67/Public-Policy-Analytics-Landing.git
 cd Public-Policy-Analytics-Landing
 
-# Install in editable mode with all extras (recommended)
+# Install in editable mode with all extras
 pip install -e ".[dev,raster]"
 
-# Or with uv (faster)
+# Or with uv (faster dependency resolution)
 uv pip install -e ".[dev,raster]"
 ```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in the values that apply to you:
+
+```bash
+cp .env.example .env
+# edit .env — at minimum set CENSUS_API_KEY for national extensions
+```
+
+Variables are loaded automatically at package import time via `python-dotenv`.
 
 ### Data Setup
 
