@@ -4,30 +4,40 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "public-policy-analytics"
-version = "0.1.0"
-description = "Python rebuild of Public Policy Analytics case studies"
+version = "0.2.0"
+description = "Python reimplementation and national-scale extensions of Ken Steif's Public Policy Analytics case studies"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+readme = "README.md"
+keywords = ["geospatial", "public-policy", "geopandas", "machine-learning", "urban-analytics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+]
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
     "pyarrow>=14",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+    "rtree>=1.1",
     "pydantic>=2.5",
     "pyyaml>=6.0",
     "matplotlib>=3.8",
     "scikit-learn>=1.3",
     "statsmodels>=0.14",
     "joblib>=1.3",
+    "requests>=2.31",
     "rich>=13",
 ]
 
 [project.optional-dependencies]
-geo = [
-    "geopandas>=0.14",
-    "shapely>=2.0",
-    "pyproj>=3.6",
-    "rtree>=1.1",
-]
 raster = [
     "rasterio>=1.3",
 ]
@@ -39,8 +49,20 @@ dev = [
     "mypy>=1.7",
     "pre-commit>=3.5",
     "types-PyYAML>=6",
+    "types-requests>=2.31",
     "pandas-stubs>=2.1",
+    "nbqa>=1.7",
+    "jupytext>=1.16",
 ]
+notebooks = [
+    "jupyterlab>=4.0",
+    "jupytext>=1.16",
+    "nbqa>=1.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/urbanSpatial/Public-Policy-Analytics-Landing"
+Book = "https://urbanspatial.github.io/PublicPolicyAnalytics/"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -63,3 +85,10 @@ ignore = [
 "src/ppa/geo/buffers.py" = ["N806"]
 "chapters/*.py" = ["N806"]
 "tests/**/*.py" = ["N803", "N806"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: marks tests requiring external data or network (deselect with '-m \"not integration\"')",
+]
