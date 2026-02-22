@@ -38,13 +38,17 @@ def iterate_fairness(
             - If has ``predict_proba``: uses ``predict_proba(X)[:, 1]``.
             - Else: uses ``predict(X)`` treating output as probability.
         threshold_by: Step size for threshold grid (e.g., 0.1 → 10x10 = 100 combos).
+            Must be > 0.
         observed_col: Column with string outcome labels.
         group_col: Column identifying demographic group.
         group_a: Label for group A (e.g., "African-American").
         group_b: Label for group B (e.g., "Caucasian").
         positive_label: String for positive outcome (e.g., "Recidivate").
         negative_label: String for negative outcome (e.g., "notRecidivate").
-        feature_cols: Columns to pass to model. Required if model needs features.
+        feature_cols: Columns to pass to model. When ``None``, features are
+            inferred by excluding ``observed_col`` and ``group_col`` from
+            ``data``. If the model exposes ``feature_names_in_`` (sklearn),
+            that takes precedence to match trained column order exactly.
 
     Returns:
         DataFrame with columns:
@@ -53,9 +57,14 @@ def iterate_fairness(
             ``False_Negative_Rate, Accuracy, threshold``
 
     Raises:
-        ValueError: If required groups are not present, observed labels are invalid,
+        ValueError: If ``threshold_by <= 0``, required groups are not present,
+            observed labels are invalid, no feature columns can be inferred,
             or model output is out of [0, 1].
     """
+    # Bug 3 fix: validate threshold_by > 0 to prevent silent empty/invalid grids
+    if threshold_by <= 0:
+        raise ValueError(f"threshold_by must be > 0, got {threshold_by!r}")
+
     # Validate groups
     for g in [group_a, group_b]:
         if g not in data[group_col].values:
@@ -74,8 +83,24 @@ def iterate_fairness(
             f"Expected: {valid_labels}"
         )
 
-    # Get predicted probabilities
-    X = data[feature_cols] if feature_cols is not None else data
+    # Bug 1 fix: safe feature selection — never pass outcome/group cols to model
+    if feature_cols is not None:
+        X = data[feature_cols]
+    elif hasattr(regression, "feature_names_in_"):
+        # sklearn-compatible model: use the exact trained feature names to
+        # prevent column order/name mismatches and label leakage
+        X = data[list(regression.feature_names_in_)]
+    else:
+        # Infer features: exclude outcome and group columns to prevent leakage
+        exclude = {observed_col, group_col}
+        inferred = [c for c in data.columns if c not in exclude]
+        if not inferred:
+            raise ValueError(
+                f"No feature columns remain after excluding '{observed_col}' and "
+                f"'{group_col}'. Pass feature_cols explicitly."
+            )
+        logger.debug("iterate_fairness: inferred feature_cols=%s", inferred)
+        X = data[inferred]
 
     if hasattr(regression, "predict_proba"):
         probs = regression.predict_proba(X)[:, 1]

@@ -1,9 +1,9 @@
-"""Unit tests for ppa.viz.themes: plot_theme and map_theme."""
+"""Unit tests for ppa.viz.themes: plot_theme, map_theme, apply_subtitle, apply_caption."""
 
 import matplotlib
 import pytest
 
-from ppa.viz.themes import map_theme, plot_theme
+from ppa.viz.themes import apply_caption, apply_subtitle, map_theme, plot_theme
 
 
 class TestPlotTheme:
@@ -47,6 +47,12 @@ class TestPlotTheme:
         assert theme["xtick.major.size"] == 0
         assert theme["ytick.major.size"] == 0
 
+    def test_plot_theme_title_not_bold(self) -> None:
+        """R plotTheme uses plain (non-bold) titles; verify axes.titleweight is absent."""
+        theme = plot_theme()
+        # Bold must NOT be forced — absence of key is the correct behaviour
+        assert theme.get("axes.titleweight") != "bold"
+
 
 class TestMapTheme:
     def test_map_theme_returns_dict(self) -> None:
@@ -82,3 +88,56 @@ class TestMapTheme:
     def test_map_theme_invalid_size(self) -> None:
         with pytest.raises(ValueError):
             map_theme(base_size=0)
+
+    def test_map_theme_title_not_bold(self) -> None:
+        """R mapTheme uses plain (non-bold) titles; verify axes.titleweight is absent."""
+        theme = map_theme()
+        assert theme.get("axes.titleweight") != "bold"
+
+
+class TestApplySubtitle:
+    def test_apply_subtitle_adds_text(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig, _ = plt.subplots()
+        apply_subtitle(fig, "Test subtitle")
+        texts = [t.get_text() for t in fig.texts]
+        assert "Test subtitle" in texts
+        plt.close(fig)
+
+    def test_apply_subtitle_is_italic(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig, _ = plt.subplots()
+        apply_subtitle(fig, "Italic subtitle")
+        italic_texts = [t for t in fig.texts if t.get_style() == "italic"]
+        assert len(italic_texts) >= 1
+        plt.close(fig)
+
+    def test_apply_subtitle_accepts_fontsize(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig, _ = plt.subplots()
+        apply_subtitle(fig, "Sized subtitle", fontsize=14)
+        assert any(t.get_text() == "Sized subtitle" for t in fig.texts)
+        plt.close(fig)
+
+
+class TestApplyCaption:
+    def test_apply_caption_adds_text(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig, _ = plt.subplots()
+        apply_caption(fig, "Source: PPA")
+        texts = [t.get_text() for t in fig.texts]
+        assert "Source: PPA" in texts
+        plt.close(fig)
+
+    def test_apply_caption_is_italic(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig, _ = plt.subplots()
+        apply_caption(fig, "Caption text")
+        italic_texts = [t for t in fig.texts if t.get_style() == "italic"]
+        assert len(italic_texts) >= 1
+        plt.close(fig)

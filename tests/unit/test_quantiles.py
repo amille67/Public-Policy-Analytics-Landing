@@ -1,9 +1,10 @@
-"""Unit tests for ppa.stats.quantiles: q5 and qbr."""
+"""Unit tests for ppa.stats.quantiles: q5, qbr, and q5_labels."""
 
 import numpy as np
 import pandas as pd
+import pytest
 
-from ppa.stats.quantiles import q5, qbr
+from ppa.stats.quantiles import q5, q5_labels, qbr
 
 
 class TestQ5:
@@ -106,3 +107,52 @@ class TestQbr:
         # All values should be numeric strings
         for s in result:
             float(s)  # Should not raise
+
+    # ── Bug 2 fix: rnd=True must raise, not silently misbehave ──────────────
+    def test_qbr_rnd_true_raises_value_error(self) -> None:
+        """rnd=True is not a valid argument; R's qBr returns NULL for it."""
+        df = pd.DataFrame({"v": list(range(10))})
+        with pytest.raises(ValueError, match="rnd=True is not supported"):
+            qbr(df, "v", rnd=True)
+
+    def test_qbr_rnd_true_error_message_is_helpful(self) -> None:
+        """Error message should guide the caller to the correct argument."""
+        df = pd.DataFrame({"v": list(range(10))})
+        with pytest.raises(ValueError, match="rnd=False"):
+            qbr(df, "v", rnd=True)
+
+
+class TestQ5Labels:
+    def test_returns_tuple_of_categorical_and_list(self) -> None:
+        df = pd.DataFrame({"v": list(range(100))})
+        cats, labels = q5_labels(df, "v")
+        assert isinstance(cats, pd.Categorical)
+        assert isinstance(labels, list)
+
+    def test_labels_length_is_5(self) -> None:
+        df = pd.DataFrame({"v": list(range(50))})
+        _, labels = q5_labels(df, "v")
+        assert len(labels) == 5
+
+    def test_categories_are_1_to_5(self) -> None:
+        df = pd.DataFrame({"v": list(range(50))})
+        cats, _ = q5_labels(df, "v")
+        assert list(cats.categories) == [1, 2, 3, 4, 5]
+
+    def test_labels_are_strings(self) -> None:
+        df = pd.DataFrame({"v": list(range(50))})
+        _, labels = q5_labels(df, "v")
+        assert all(isinstance(s, str) for s in labels)
+
+    def test_rnd_false_propagates_to_qbr(self) -> None:
+        df = pd.DataFrame({"v": list(range(100))})
+        _, labels = q5_labels(df, "v", rnd=False)
+        # rnd=False → 3 decimal format
+        for s in labels:
+            assert "." in s
+            assert len(s.split(".")[-1]) == 3
+
+    def test_rnd_true_propagates_raises(self) -> None:
+        df = pd.DataFrame({"v": list(range(10))})
+        with pytest.raises(ValueError, match="rnd=True is not supported"):
+            q5_labels(df, "v", rnd=True)

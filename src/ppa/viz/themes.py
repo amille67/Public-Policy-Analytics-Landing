@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def plot_theme(*, base_size: int = 12, title_size: int = 16) -> dict[str, object]:
     """Return matplotlib rcParams overrides for non-map plots.
@@ -9,6 +11,9 @@ def plot_theme(*, base_size: int = 12, title_size: int = 16) -> dict[str, object
     Python equivalent of R ``plotTheme(base_size, title_size)``.
     The returned dict can be applied via ``matplotlib.rcParams.update(theme)``
     or used as a context manager via ``matplotlib.rc_context(theme)``.
+
+    Titles are plain black (not bold) to match R's ggplot theme defaults.
+    Use ``apply_subtitle`` and ``apply_caption`` for figure-level text.
 
     This function is **pure**: it does not mutate global rcParams.
 
@@ -29,9 +34,8 @@ def plot_theme(*, base_size: int = 12, title_size: int = 16) -> dict[str, object
         # Text
         "text.color": "black",
         "font.size": base_size,
-        # Title
+        # Title — plain black to match R's plotTheme (not bold)
         "axes.titlesize": title_size,
-        "axes.titleweight": "bold",
         "axes.titlecolor": "black",
         # Ticks removed
         "xtick.major.size": 0,
@@ -72,6 +76,9 @@ def map_theme(*, base_size: int = 12, title_size: int = 16) -> dict[str, object]
     Removes axis titles, tick labels, and gridlines — suitable for
     geographic plots where spatial context replaces axes.
 
+    Titles are plain black (not bold) to match R's ggplot theme defaults.
+    Use ``apply_subtitle`` and ``apply_caption`` for figure-level text.
+
     This function is **pure**: it does not mutate global rcParams.
 
     Args:
@@ -91,9 +98,8 @@ def map_theme(*, base_size: int = 12, title_size: int = 16) -> dict[str, object]
         # Text
         "text.color": "black",
         "font.size": base_size,
-        # Title
+        # Title — plain black to match R's mapTheme (not bold)
         "axes.titlesize": title_size,
-        "axes.titleweight": "bold",
         "axes.titlecolor": "black",
         # No axis ticks or labels for maps
         "xtick.major.size": 0,
@@ -121,3 +127,35 @@ def map_theme(*, base_size: int = 12, title_size: int = 16) -> dict[str, object]
         "legend.fontsize": base_size,
         "legend.frameon": False,
     }
+
+
+def apply_subtitle(fig: Any, text: str, *, fontsize: int | None = None) -> None:
+    """Add an italic subtitle to a figure, mimicking R's plotTheme subtitle style.
+
+    Places the subtitle just below the suptitle (y=0.92) in italic, centred.
+    Call after ``fig.suptitle(...)`` so placement is predictable.
+
+    Args:
+        fig: matplotlib Figure to annotate.
+        text: Subtitle string.
+        fontsize: Optional font size override. Defaults to figure's base font size.
+    """
+    kwargs: dict[str, Any] = {"style": "italic", "ha": "center", "va": "top"}
+    if fontsize is not None:
+        kwargs["fontsize"] = fontsize
+    fig.text(0.5, 0.92, text, **kwargs)
+
+
+def apply_caption(fig: Any, text: str, *, fontsize: int = 9) -> None:
+    """Add a small italic caption at the bottom-left of a figure.
+
+    Mimics R's plotTheme/mapTheme caption styling (small, bottom-left, italic).
+
+    Args:
+        fig: matplotlib Figure to annotate.
+        text: Caption string.
+        fontsize: Font size. Default 9.
+    """
+    fig.text(
+        0.01, 0.01, text, fontsize=fontsize, ha="left", va="bottom", style="italic"
+    )

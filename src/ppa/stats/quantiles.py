@@ -83,10 +83,24 @@ def qbr(
             - ``None`` (default): Round values to 0 decimals before computing
               quantiles (mirrors R's missing-argument branch).
             - ``False``: Use raw values; format with 3 decimal places.
+            - ``True``: **Not supported** — R's ``qBr`` does not define behavior
+              for ``rnd=TRUE`` (it returns ``NULL``). Raises ``ValueError``.
 
     Returns:
         List of 5 strings. Returns ``["nan"] * 5`` if all values are null.
+
+    Raises:
+        ValueError: If ``rnd=True`` is passed.
     """
+    # Bug 2 fix: match R semantics — rnd=TRUE is undefined in R's qBr and
+    # effectively returns NULL; raise explicitly rather than silently misbehave.
+    if rnd is True:
+        raise ValueError(
+            "rnd=True is not supported. R's qBr does not define behavior for "
+            "rnd=TRUE (it returns NULL). Pass rnd=False for raw-value quantiles "
+            "or rnd=None (default) for rounded quantiles."
+        )
+
     probs = [0.01, 0.2, 0.4, 0.6, 0.8]
 
     x = pd.to_numeric(df[variable], errors="coerce")
@@ -101,6 +115,39 @@ def qbr(
         quantiles = rounded.quantile(probs)
         return [f"{v:g}" for v in quantiles]
     else:
-        # rnd == False: quantile(x, probs, na.rm=T), format with 3 decimals
+        # rnd is False: quantile(x, probs, na.rm=T), format with 3 decimals
         quantiles = non_null.quantile(probs)
         return [f"{v:.3f}" for v in quantiles]
+
+
+def q5_labels(
+    df: pd.DataFrame,
+    variable: str,
+    *,
+    rnd: bool | None = None,
+) -> tuple[pd.Categorical, list[str]]:
+    """Return q5 bin assignments and matching legend labels for a DataFrame column.
+
+    Combines ``q5`` and ``qbr`` to produce both the category vector and the five
+    break-value strings needed to label a quintile map legend in one call.
+
+    Args:
+        df: DataFrame containing the variable.
+        variable: Column name to bin (numeric).
+        rnd: Passed to ``qbr``. ``None`` (default) rounds before quantiles;
+            ``False`` uses raw values with 3-decimal formatting.
+
+    Returns:
+        Tuple ``(categories, labels)`` where ``categories`` is a
+        ``pd.Categorical`` with ordered integer bins [1-5] and ``labels`` is a
+        list of 5 strings suitable for legend tick annotations.
+
+    Example::
+
+        cats, labels = q5_labels(gdf, "median_price")
+        gdf["price_q5"] = cats
+        # use labels as legend tick text
+    """
+    cats = q5(df[variable])
+    labels = qbr(df, variable, rnd=rnd)
+    return cats, labels
