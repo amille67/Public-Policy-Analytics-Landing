@@ -1,0 +1,45 @@
+# config/national/ch01_national.yaml
+# National comparison config for Chapter 1 — Transit-Oriented Development
+#
+# Peer MSAs chosen to span a range of transit investment levels and
+# housing market conditions, mirroring the Philadelphia original.
+
+acs_year: 2022
+acs_preset: housing       # median_home_value, median_rent, tenure fields
+transit_buffer_m: 800     # ~0.5-mile walkshed around stations
+
+peer_msas:
+  - name: Philadelphia
+    state_fips: "42"
+    county_fips: "101"    # Philadelphia County
+    region: philadelphia
+    note: Original chapter case study
+  - name: Chicago
+    state_fips: "17"
+    county_fips: "031"    # Cook County
+    region: chicago
+  - name: Boston
+    state_fips: "25"
+    county_fips: "025"    # Suffolk County
+    region: boston
+  - name: Washington DC
+    state_fips: "11"
+    county_fips: "001"
+    region: washington_dc
+  - name: Denver
+    state_fips: "08"
+    county_fips: "031"    # Denver County
+    region: denver
+  - name: Portland OR
+    state_fips: "41"
+    county_fips: "051"    # Multnomah County
+    region: portland
+
+dask:
+  workers: 1
+  worker_memory_limit: 4GB
+
+output:
+  figures_dir: outputs/national/ch01/figures
+  data_dir: outputs/national/ch01/data
+  interim_root: data/interim

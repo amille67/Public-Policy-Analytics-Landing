@@ -1,0 +1,5 @@
+data_root: "data/raw/DATA"
+output_root: "outputs"
+seed: 42
+log_level: "INFO"
+figure_dpi: 150

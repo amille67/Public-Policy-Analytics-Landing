@@ -1,0 +1,18 @@
+chapter_id: "ch04"
+crs_epsg: 26919
+sample: null
+inputs:
+  houses: "Chapter3_4/bostonHousePriceData_clean.csv"
+  crimes: "Chapter3_4/bostonCrimes.csv"
+  nhoods: "Chapter3_4/Boston_Nhoods"
+  spatial_features: "Chapter3_4/boston_sf_Ch1_wrangled.geojson"
+house_lon_col: "LON"
+house_lat_col: "LAT"
+target_price_col: "SalePrice"
+crime_lon_col: "Long"
+crime_lat_col: "Lat"
+knn_k: 5
+cv_strategy: "leave_one_neighborhood_out"
+model:
+  type: "random_forest"
+  n_estimators: 100
