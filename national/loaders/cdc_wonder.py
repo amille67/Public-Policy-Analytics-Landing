@@ -24,6 +24,7 @@ from typing import Any
 import joblib
 import pandas as pd
 import requests
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,20 @@ def _fetch_wonder_raw(
     return result
 
 
+@retry(
+    retry=retry_if_exception_type((requests.RequestException, ValueError)),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def _fetch_wonder_raw_with_retry(
+    dataset_id: str,
+    request_body: str,
+) -> dict[str, Any]:
+    """POST CDC WONDER request with retries."""
+    return _fetch_wonder_raw(dataset_id=dataset_id, request_body=request_body)
+
+
 def fetch_wonder(
     dataset_id: str,
     params: dict[str, str],
@@ -114,7 +129,7 @@ def fetch_wonder(
     import urllib.parse
 
     body = urllib.parse.urlencode(params)
-    raw = _fetch_wonder_raw(dataset_id, body)
+    raw = _fetch_wonder_raw_with_retry(dataset_id, body)
 
     # WONDER returns data under "data" key with "headers" and "rows"
     if "data" not in raw:

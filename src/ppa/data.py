@@ -20,6 +20,7 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import joblib
 import pandas as pd
 import requests
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,29 @@ def _fetch_acs_raw(
     return data
 
 
+@retry(
+    retry=retry_if_exception_type((requests.RequestException, ValueError)),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def _fetch_acs_raw_with_retry(
+    year: int,
+    variables: tuple[str, ...],
+    state_fips: str,
+    county_fips: str | None,
+    api_key: str | None,
+) -> list[list[str]]:
+    """Fetch raw ACS data with exponential-backoff retries."""
+    return _fetch_acs_raw(
+        year=year,
+        variables=variables,
+        state_fips=state_fips,
+        county_fips=county_fips,
+        api_key=api_key,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public: fetch_acs_tracts
 # ---------------------------------------------------------------------------
@@ -188,8 +212,7 @@ def fetch_acs_tracts(
     -------
     geopandas.GeoDataFrame
         One row per tract with a ``GEOID`` column, the requested ACS
-        variables (renamed), and a point geometry at the tract centroid
-        (EPSG:4326).
+        variables (renamed), and tract polygon geometry (EPSG:4326).
 
     Raises
     ------
@@ -223,7 +246,7 @@ def fetch_acs_tracts(
     census_codes = tuple(var_map.keys())
 
     # Fetch (cached)
-    raw_rows = _fetch_acs_raw(
+    raw_rows = _fetch_acs_raw_with_retry(
         year=year,
         variables=census_codes,
         state_fips=state_fips,
@@ -252,11 +275,18 @@ def fetch_acs_tracts(
     keep_cols = [c for c in keep_cols if c in df.columns]
     df = df[keep_cols]
 
-    # Build a trivial point GeoDataFrame (centroid geometry will be added
-    # later when joined to TIGER shapefiles; for now we return with no
-    # geometry so callers can join as needed).
-    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy([0.0] * len(df), [0.0] * len(df)))
-    gdf = gdf.set_crs(epsg=_DEFAULT_STORAGE_EPSG)
+    from national.loaders.tiger import fetch_tiger_tracts  # lazy to avoid circular import
+
+    tiger_gdf = fetch_tiger_tracts(year=year, state_fips=state_fips, target_epsg=_DEFAULT_STORAGE_EPSG)
+    tiger_gdf["GEOID"] = tiger_gdf["GEOID"].astype(str)
+    df["GEOID"] = df["GEOID"].astype(str)
+
+    gdf = tiger_gdf.merge(df, on="GEOID", how="inner", suffixes=("", "_acs"))
+
+    if not gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).all():
+        raise ValueError("ACS tract join produced non-polygon geometries; TIGER merge failed")
+
+    gdf = standardize_crs(gdf, target_epsg=_DEFAULT_STORAGE_EPSG)
 
     logger.info(
         "Loaded %d ACS tracts for state=%s county=%s year=%d",

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
-from shapely.geometry import Point  # type: ignore[import-untyped]
+from shapely.geometry import Point, Polygon  # type: ignore[import-untyped]
 
 from ppa.data import (  # isort: skip
     ACS_VARIABLE_PRESETS,
@@ -120,10 +120,20 @@ class TestStandardizeCrs:
 class TestFetchAcsTracts:
     """Tests for the fetch_acs_tracts function, with mocked API calls."""
 
-    @patch("ppa.data._fetch_acs_raw")
-    def test_basic_fetch(self, mock_raw: MagicMock) -> None:
+    @patch("national.loaders.tiger.fetch_tiger_tracts")
+    @patch("ppa.data._fetch_acs_raw_with_retry")
+    def test_basic_fetch(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
         """Fetch tracts with the default 'demographics' preset."""
         mock_raw.return_value = MOCK_ACS_RESPONSE
+        mock_tiger.return_value = gpd.GeoDataFrame(
+            {"GEOID": ["42101000100", "42101000200", "42101000300"]},
+            geometry=[
+                Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
+                Polygon([(1, 0), (1, 1), (2, 1), (2, 0)]),
+                Polygon([(2, 0), (2, 1), (3, 1), (3, 0)]),
+            ],
+            crs="EPSG:4326",
+        )
 
         gdf = fetch_acs_tracts(2022, "42", county_fips="101")
 
@@ -135,24 +145,40 @@ class TestFetchAcsTracts:
         # GEOID should be state+county+tract
         assert gdf.iloc[0]["GEOID"] == "42101000100"
 
-    @patch("ppa.data._fetch_acs_raw")
-    def test_numeric_conversion(self, mock_raw: MagicMock) -> None:
+    @patch("national.loaders.tiger.fetch_tiger_tracts")
+    @patch("ppa.data._fetch_acs_raw_with_retry")
+    def test_numeric_conversion(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
         """ACS values should be converted to numeric types."""
         mock_raw.return_value = MOCK_ACS_RESPONSE
+        mock_tiger.return_value = gpd.GeoDataFrame(
+            {"GEOID": ["42101000100", "42101000200", "42101000300"]},
+            geometry=[
+                Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
+                Polygon([(1, 0), (1, 1), (2, 1), (2, 0)]),
+                Polygon([(2, 0), (2, 1), (3, 1), (3, 0)]),
+            ],
+            crs="EPSG:4326",
+        )
 
         gdf = fetch_acs_tracts(2022, "42", county_fips="101")
 
         assert pd.api.types.is_numeric_dtype(gdf["total_pop"])
         assert gdf.iloc[0]["total_pop"] == 5000
 
-    @patch("ppa.data._fetch_acs_raw")
-    def test_custom_variables(self, mock_raw: MagicMock) -> None:
+    @patch("national.loaders.tiger.fetch_tiger_tracts")
+    @patch("ppa.data._fetch_acs_raw_with_retry")
+    def test_custom_variables(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
         """Fetch with explicit variable mapping."""
         custom_response: list[list[str]] = [
             ["NAME", "B19013_001E", "state", "county", "tract"],
             ["Tract 1", "55000", "42", "101", "000100"],
         ]
         mock_raw.return_value = custom_response
+        mock_tiger.return_value = gpd.GeoDataFrame(
+            {"GEOID": ["42101000100"]},
+            geometry=[Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])],
+            crs="EPSG:4326",
+        )
 
         gdf = fetch_acs_tracts(
             2022,
@@ -164,15 +190,39 @@ class TestFetchAcsTracts:
         assert "median_income" in gdf.columns
         assert gdf.iloc[0]["median_income"] == 55000
 
-    @patch("ppa.data._fetch_acs_raw")
-    def test_crs_is_4326(self, mock_raw: MagicMock) -> None:
+    @patch("national.loaders.tiger.fetch_tiger_tracts")
+    @patch("ppa.data._fetch_acs_raw_with_retry")
+    def test_crs_is_4326(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
         """Returned GeoDataFrame should be in EPSG:4326."""
         mock_raw.return_value = MOCK_ACS_RESPONSE
+        mock_tiger.return_value = gpd.GeoDataFrame(
+            {"GEOID": ["42101000100", "42101000200", "42101000300"]},
+            geometry=[
+                Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
+                Polygon([(1, 0), (1, 1), (2, 1), (2, 0)]),
+                Polygon([(2, 0), (2, 1), (3, 1), (3, 0)]),
+            ],
+            crs="EPSG:4326",
+        )
 
         gdf = fetch_acs_tracts(2022, "42", county_fips="101")
 
         assert gdf.crs is not None
         assert gdf.crs.to_epsg() == _DEFAULT_STORAGE_EPSG
+
+    @patch("national.loaders.tiger.fetch_tiger_tracts")
+    @patch("ppa.data._fetch_acs_raw_with_retry")
+    def test_non_polygon_geometry_raises(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
+        """Fail fast when TIGER merge does not return polygonal geometry."""
+        mock_raw.return_value = MOCK_ACS_RESPONSE
+        mock_tiger.return_value = gpd.GeoDataFrame(
+            {"GEOID": ["42101000100", "42101000200", "42101000300"]},
+            geometry=[Point(0, 0), Point(1, 1), Point(2, 2)],
+            crs="EPSG:4326",
+        )
+
+        with pytest.raises(ValueError, match="non-polygon"):
+            fetch_acs_tracts(2022, "42", county_fips="101")
 
     def test_unknown_preset_raises(self) -> None:
         """Raise ValueError for an unknown preset name."""
@@ -184,10 +234,20 @@ class TestFetchAcsTracts:
         with pytest.raises(ValueError, match="Either"):
             fetch_acs_tracts(2022, "42", variables=None, preset=None)
 
-    @patch("ppa.data._fetch_acs_raw")
-    def test_api_key_from_env(self, mock_raw: MagicMock) -> None:
+    @patch("national.loaders.tiger.fetch_tiger_tracts")
+    @patch("ppa.data._fetch_acs_raw_with_retry")
+    def test_api_key_from_env(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
         """API key falls back to CENSUS_API_KEY env var."""
         mock_raw.return_value = MOCK_ACS_RESPONSE
+        mock_tiger.return_value = gpd.GeoDataFrame(
+            {"GEOID": ["42101000100", "42101000200", "42101000300"]},
+            geometry=[
+                Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
+                Polygon([(1, 0), (1, 1), (2, 1), (2, 0)]),
+                Polygon([(2, 0), (2, 1), (3, 1), (3, 0)]),
+            ],
+            crs="EPSG:4326",
+        )
 
         with patch.dict("os.environ", {"CENSUS_API_KEY": "test-key-123"}):
             fetch_acs_tracts(2022, "42", county_fips="101")

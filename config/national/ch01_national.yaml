@@ -35,6 +35,11 @@ peer_msas:
     county_fips: "051"    # Multnomah County
     region: portland
 
+dask:
+  workers: 1
+  worker_memory_limit: 4GB
+
 output:
   figures_dir: outputs/national/ch01/figures
   data_dir: outputs/national/ch01/data
+  interim_root: data/interim

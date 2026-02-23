@@ -1,0 +1,10 @@
+acs_year: 2022
+acs_preset: demographics
+transit_buffer_m: 800
+
+dask:
+  workers: 1
+  worker_memory_limit: 4GB
+
+output:
+  interim_root: data/interim
