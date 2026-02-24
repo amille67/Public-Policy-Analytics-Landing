@@ -37,9 +37,7 @@ with st.sidebar:
     )
     state.selected_geo_level = st.radio("Granularity", levels, horizontal=True)
 
-    st.caption(
-        f"ETL Vintage: {state.selected_year} | Chapter {metadata[view_id]['chapter']}"
-    )
+    st.caption(f"ETL Vintage: 2024 | Chapter {metadata[view_id]['chapter']}")
 
 st.title(state.selected_view)
 
