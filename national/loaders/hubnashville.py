@@ -20,7 +20,7 @@ DATASET_IDS = {
 
 
 def _client() -> Any:
-    from sodapy import Socrata  # type: ignore[import-untyped]
+    from sodapy import Socrata  # type: ignore[import-not-found]
 
     return Socrata(
         "data.nashville.gov", os.environ.get("SOCRATA_APP_TOKEN"), timeout=90
@@ -47,7 +47,7 @@ def _to_gdf(records: list[dict[str, Any]]) -> gpd.GeoDataFrame:
     if geom_col is not None:
         from shapely.geometry import shape
 
-        def parse_geom(x):
+        def parse_geom(x: object) -> object:
             try:
                 return shape(x) if isinstance(x, dict) else None
             except Exception:

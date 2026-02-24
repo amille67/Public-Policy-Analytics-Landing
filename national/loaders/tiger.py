@@ -43,7 +43,7 @@ def _fetch_tiger_bytes(year: int, state_fips: str, geography: str) -> bytes:
     logger.info("Downloading TIGER boundaries: %s", url)
     resp = requests.get(url, timeout=300)
     resp.raise_for_status()
-    return resp.content
+    return bytes(resp.content)
 
 
 def _read_tiger_zip(raw_zip: bytes, cache_key: str) -> gpd.GeoDataFrame:
