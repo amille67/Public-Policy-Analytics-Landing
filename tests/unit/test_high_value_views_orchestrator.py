@@ -16,15 +16,13 @@ def test_run_selected_builds_requested_views(monkeypatch: object, tmp_path: Path
         return pd.DataFrame({"GEOID": ["47037010100"], "risk_score": [1.0]})
 
     from etl import create_high_value_views as mod
-
-    # Updated to match final RUNNER_MAP (short keys)
     monkeypatch.setattr(mod, "RUNNER_MAP", {k: _fake_runner for k in mod.RUNNER_MAP})
 
-    def _fake_write_parquet(df: pd.DataFrame, path: Path) -> None:
+    def _fake_write(df: pd.DataFrame, path: Path) -> None:
         written.append(path)
 
-    monkeypatch.setattr(mod, "write_parquet", _fake_write_parquet)
-    monkeypatch.setattr(mod, "write_geoparquet", _fake_write_parquet)
+    monkeypatch.setattr(mod, "write_parquet", _fake_write)
+    monkeypatch.setattr(mod, "write_geoparquet", _fake_write)
 
     config = tmp_path / "views_config.json"
     config.write_text(Path("etl/views_config.json").read_text(encoding="utf-8"), encoding="utf-8")
