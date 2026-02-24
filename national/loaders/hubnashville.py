@@ -136,4 +136,63 @@ def hubnashville_permits(fips_list: list[str] | None = None) -> gpd.GeoDataFrame
     return out[["tract_geoid", "permit_type", "geometry"]]
 
 
-# (hubnashville_parcels, hubnashville_assessor, hubnashville_usd unchanged — already perfect)
+
+
+def hubnashville_parcels(fips_list: list[str] | None = None) -> gpd.GeoDataFrame:
+    """Load parcel records and assign tract geoid."""
+    if fips_list is None:
+        fips_list = ["47037"]
+    gdf = _to_gdf(_records(DATASET_IDS["parcels"]))
+    if gdf.empty:
+        return gpd.GeoDataFrame(columns=["tract_geoid"], geometry=[], crs="EPSG:4326")
+
+    out = _attach_tract_geoid(gdf, fips_list)
+    return out[["tract_geoid", "geometry"]]
+
+
+def hubnashville_assessor(fips_list: list[str] | None = None) -> pd.DataFrame:
+    """Load assessor records and attach tract geoid + normalized appraised values."""
+    if fips_list is None:
+        fips_list = ["47037"]
+
+    gdf = _to_gdf(_records(DATASET_IDS["assessor"]))
+    if gdf.empty:
+        return pd.DataFrame(columns=["tract_geoid", "appraised_value"])
+
+    out = _attach_tract_geoid(gdf, fips_list)
+
+    value_col = next(
+        (
+            c
+            for c in [
+                "appraised_value",
+                "total_appraisal_value",
+                "market_value",
+                "assessed_value",
+                "total_value",
+                "land_value",
+            ]
+            if c in out.columns
+        ),
+        None,
+    )
+    if value_col is None:
+        out["appraised_value"] = 0.0
+    else:
+        raw = out[value_col].astype(str).str.replace(r"[^0-9.\-]", "", regex=True)
+        out["appraised_value"] = pd.to_numeric(raw, errors="coerce").fillna(0.0)
+
+    return out[["tract_geoid", "appraised_value"]]
+
+
+def hubnashville_usd(fips_list: list[str] | None = None) -> pd.DataFrame:
+    """Load Urban Services District features and return tract membership flags."""
+    if fips_list is None:
+        fips_list = ["47037"]
+
+    gdf = _to_gdf(_records(DATASET_IDS["usd"]))
+    if gdf.empty:
+        return pd.DataFrame(columns=["tract_geoid"])
+
+    out = _attach_tract_geoid(gdf, fips_list)
+    return out[["tract_geoid"]].dropna().drop_duplicates().reset_index(drop=True)
