@@ -21,12 +21,16 @@ def render_numeric_distribution(df: pd.DataFrame) -> None:
         return
 
     sample["bin"] = pd.cut(sample[col], bins=10).astype(str)
-    counts = sample.groupby("bin", as_index=False).size().rename(columns={"size": "count"})
+    counts = (
+        sample.groupby("bin", as_index=False).size().rename(columns={"size": "count"})
+    )
 
     chart = (
         alt.Chart(counts)
         .mark_bar(color="#1e40af")
-        .encode(x=alt.X("bin:N", sort=None, title=col), y=alt.Y("count:Q", title="Count"))
+        .encode(
+            x=alt.X("bin:N", sort=None, title=col), y=alt.Y("count:Q", title="Count")
+        )
         .properties(height=220)
     )
     st.altair_chart(chart, use_container_width=True)

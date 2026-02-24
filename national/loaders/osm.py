@@ -8,8 +8,15 @@ import pandas as pd
 from national.loaders.tiger import tiger_tracts
 
 
-def _tract_join(points_or_polys: gpd.GeoDataFrame, tracts: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    joined = gpd.sjoin(points_or_polys, tracts[["GEOID", "geometry"]], how="left", predicate="intersects")
+def _tract_join(
+    points_or_polys: gpd.GeoDataFrame, tracts: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
+    joined = gpd.sjoin(
+        points_or_polys,
+        tracts[["GEOID", "geometry"]],
+        how="left",
+        predicate="intersects",
+    )
     joined["tract_geoid"] = joined["GEOID"].astype(str)
     return joined.drop(columns=["index_right"], errors="ignore")
 
@@ -23,7 +30,9 @@ def osm_transit_stops(fips_list: list[str] | None = None) -> gpd.GeoDataFrame:
     tracts = tiger_tracts(fips_list)
     search_area = tracts.to_crs("EPSG:4326").union_all()
     stops = ox.features_from_polygon(search_area, tags={"highway": "bus_stop"})
-    stops = gpd.GeoDataFrame(stops, geometry="geometry", crs="EPSG:4326").reset_index(drop=True)
+    stops = gpd.GeoDataFrame(stops, geometry="geometry", crs="EPSG:4326").reset_index(
+        drop=True
+    )
     if stops.empty:
         return gpd.GeoDataFrame({"tract_geoid": []}, geometry=[], crs="EPSG:4326")
     return _tract_join(stops[["geometry"]], tracts.to_crs("EPSG:4326"))
@@ -37,15 +46,21 @@ def osm_industrial_footprints(fips_list: list[str] | None = None) -> gpd.GeoData
 
     tracts = tiger_tracts(fips_list)
     search_area = tracts.to_crs("EPSG:4326").union_all()
-    buildings = ox.features_from_polygon(search_area, tags={"building": ["industrial", "warehouse"]})
-    gdf = gpd.GeoDataFrame(buildings, geometry="geometry", crs="EPSG:4326").reset_index(drop=True)
+    buildings = ox.features_from_polygon(
+        search_area, tags={"building": ["industrial", "warehouse"]}
+    )
+    gdf = gpd.GeoDataFrame(buildings, geometry="geometry", crs="EPSG:4326").reset_index(
+        drop=True
+    )
     if gdf.empty:
         return gpd.GeoDataFrame({"tract_geoid": []}, geometry=[], crs="EPSG:4326")
 
     gdf = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
     gdf["footprint_area_m2"] = gdf.to_crs("EPSG:5070").geometry.area
     gdf = gdf[gdf["footprint_area_m2"] > 5000].copy()
-    return _tract_join(gdf[["geometry", "footprint_area_m2"]], tracts.to_crs("EPSG:4326"))
+    return _tract_join(
+        gdf[["geometry", "footprint_area_m2"]], tracts.to_crs("EPSG:4326")
+    )
 
 
 def fetch_osm_risk_proxies(
@@ -69,11 +84,19 @@ def fetch_osm_risk_proxies(
 
     # Chunk by county to stay within Overpass API memory/time limits.
     tracts_wgs84 = tracts_gdf[
-        ["GEOID", "geometry", *(["COUNTYFP"] if "COUNTYFP" in tracts_gdf.columns else [])]
+        [
+            "GEOID",
+            "geometry",
+            *(["COUNTYFP"] if "COUNTYFP" in tracts_gdf.columns else []),
+        ]
     ].to_crs(epsg=4326)
 
     if "COUNTYFP" in tracts_wgs84.columns:
-        chunks = tracts_wgs84[["COUNTYFP", "geometry"]].dissolve(by="COUNTYFP").geometry.tolist()
+        chunks = (
+            tracts_wgs84[["COUNTYFP", "geometry"]]
+            .dissolve(by="COUNTYFP")
+            .geometry.tolist()
+        )
     else:
         chunk_size = 250
         geoms = tracts_wgs84.geometry.tolist()
@@ -88,7 +111,9 @@ def fetch_osm_risk_proxies(
             continue
         features = ox.features_from_polygon(chunk_polygon, tags=requested_tags)
         if isinstance(features, pd.DataFrame) and not features.empty:
-            feature_frames.append(gpd.GeoDataFrame(features, geometry="geometry", crs="EPSG:4326"))
+            feature_frames.append(
+                gpd.GeoDataFrame(features, geometry="geometry", crs="EPSG:4326")
+            )
 
     if not feature_frames:
         return tracts_gdf.assign(osm_risk_count=0)

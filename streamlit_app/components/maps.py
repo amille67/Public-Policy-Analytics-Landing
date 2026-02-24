@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
-import pandas as pd          # ← added (required for pd.isna)
+import pandas as pd  # ← added (required for pd.isna)
 import pydeck as pdk
 import streamlit as st
 
@@ -25,13 +25,13 @@ def _normalize_colors(gdf: gpd.GeoDataFrame, metric_col: str) -> gpd.GeoDataFram
 
     def _get_color(x):
         if pd.isna(x):
-            return [150, 150, 150, 100]   # neutral gray for points
+            return [150, 150, 150, 100]  # neutral gray for points
         val = float(x)
         return [
             int(255 * ((val - min_v) / denom)),
             60,
             int(255 - 255 * ((val - min_v) / denom)),
-            220
+            220,
         ]
 
     gdf = gdf.copy()
@@ -55,13 +55,19 @@ def render_view_map(gdf: gpd.GeoDataFrame, view_name: str) -> None:
         map_gdf = _normalize_colors(map_gdf, metric_col)
 
     # Polygons
-    poly = map_gdf[map_gdf.geometry.geom_type.astype(str).isin(["Polygon", "MultiPolygon"])].copy()
+    poly = map_gdf[
+        map_gdf.geometry.geom_type.astype(str).isin(["Polygon", "MultiPolygon"])
+    ].copy()
     if not poly.empty:
         layers.append(
             pdk.Layer(
                 "GeoJsonLayer",
                 data=poly.__geo_interface__,
-                get_fill_color="properties.__color" if "__color" in poly.columns else [66, 135, 245, 120],
+                get_fill_color=(
+                    "properties.__color"
+                    if "__color" in poly.columns
+                    else [66, 135, 245, 120]
+                ),
                 get_line_color=[30, 58, 138, 200],
                 line_width_min_pixels=1,
                 pickable=True,

@@ -19,12 +19,16 @@ def interim_root(root: str | Path = "data/interim") -> Path:
     return path
 
 
-def state_partition_path(state_fips: str, dataset: str, root: str | Path = "data/interim") -> Path:
+def state_partition_path(
+    state_fips: str, dataset: str, root: str | Path = "data/interim"
+) -> Path:
     """Return canonical parquet path for a state partition."""
     return interim_root(root) / dataset / f"STATEFP={state_fips}" / "part.parquet"
 
 
-def checkpoint_exists(state_fips: str, dataset: str, root: str | Path = "data/interim") -> bool:
+def checkpoint_exists(
+    state_fips: str, dataset: str, root: str | Path = "data/interim"
+) -> bool:
     """Check whether a state partition has already been written."""
     return state_partition_path(state_fips, dataset, root).exists()
 

@@ -20,7 +20,12 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import joblib
 import pandas as pd
 import requests
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -275,16 +280,22 @@ def fetch_acs_tracts(
     keep_cols = [c for c in keep_cols if c in df.columns]
     df = df[keep_cols]
 
-    from national.loaders.tiger import fetch_tiger_tracts  # lazy to avoid circular import
+    from national.loaders.tiger import (
+        fetch_tiger_tracts,
+    )  # lazy to avoid circular import
 
-    tiger_gdf = fetch_tiger_tracts(year=year, state_fips=state_fips, target_epsg=_DEFAULT_STORAGE_EPSG)
+    tiger_gdf = fetch_tiger_tracts(
+        year=year, state_fips=state_fips, target_epsg=_DEFAULT_STORAGE_EPSG
+    )
     tiger_gdf["GEOID"] = tiger_gdf["GEOID"].astype(str)
     df["GEOID"] = df["GEOID"].astype(str)
 
     gdf = tiger_gdf.merge(df, on="GEOID", how="inner", suffixes=("", "_acs"))
 
     if not gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).all():
-        raise ValueError("ACS tract join produced non-polygon geometries; TIGER merge failed")
+        raise ValueError(
+            "ACS tract join produced non-polygon geometries; TIGER merge failed"
+        )
 
     gdf = standardize_crs(gdf, target_epsg=_DEFAULT_STORAGE_EPSG)
 
@@ -361,7 +372,9 @@ def standardize_crs(
     current_epsg: int | None = gdf.crs.to_epsg()
 
     if current_epsg == target_epsg:
-        logger.debug("GeoDataFrame already in EPSG:%d — no reprojection needed", target_epsg)
+        logger.debug(
+            "GeoDataFrame already in EPSG:%d — no reprojection needed", target_epsg
+        )
         return gdf
 
     logger.info("Reprojecting from EPSG:%s to EPSG:%d", current_epsg, target_epsg)

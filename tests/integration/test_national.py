@@ -16,7 +16,13 @@ from national.orchestrator import NationalOrchestrator
 def _mock_tracts() -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(
         {
-            "GEOID": ["10001000100", "10001000200", "10001000300", "10001000400", "10001000500"],
+            "GEOID": [
+                "10001000100",
+                "10001000200",
+                "10001000300",
+                "10001000400",
+                "10001000500",
+            ],
             "NAME": [f"Tract {i}" for i in range(1, 6)],
             "total_pop": [100, 120, 140, 160, 180],
             "STATEFP": ["10"] * 5,
@@ -41,7 +47,9 @@ def test_national_orchestrator_idempotent(tmp_path: Path) -> None:
     config_path = tmp_path / "national.yaml"
     config_path.write_text(yaml.safe_dump(config))
 
-    orch = NationalOrchestrator(config_path=config_path, interim_root=tmp_path / "interim")
+    orch = NationalOrchestrator(
+        config_path=config_path, interim_root=tmp_path / "interim"
+    )
 
     with patch("national.orchestrator.fetch_acs_tracts", return_value=_mock_tracts()):
         first = orch.run(dataset="acs_tracts")

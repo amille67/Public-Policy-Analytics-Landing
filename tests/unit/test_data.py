@@ -54,7 +54,16 @@ def sample_gdf_no_crs() -> gpd.GeoDataFrame:
 
 
 MOCK_ACS_RESPONSE: list[list[str]] = [
-    ["NAME", "B01003_001E", "B02001_002E", "B03001_003E", "B01002_001E", "state", "county", "tract"],
+    [
+        "NAME",
+        "B01003_001E",
+        "B02001_002E",
+        "B03001_003E",
+        "B01002_001E",
+        "state",
+        "county",
+        "tract",
+    ],
     ["Tract 1, County, State", "5000", "3000", "1000", "35.5", "42", "101", "000100"],
     ["Tract 2, County, State", "8000", "4500", "2000", "42.1", "42", "101", "000200"],
     ["Tract 3, County, State", "3000", "2000", "500", "28.0", "42", "101", "000300"],
@@ -147,7 +156,9 @@ class TestFetchAcsTracts:
 
     @patch("national.loaders.tiger.fetch_tiger_tracts")
     @patch("ppa.data._fetch_acs_raw_with_retry")
-    def test_numeric_conversion(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
+    def test_numeric_conversion(
+        self, mock_raw: MagicMock, mock_tiger: MagicMock
+    ) -> None:
         """ACS values should be converted to numeric types."""
         mock_raw.return_value = MOCK_ACS_RESPONSE
         mock_tiger.return_value = gpd.GeoDataFrame(
@@ -212,7 +223,9 @@ class TestFetchAcsTracts:
 
     @patch("national.loaders.tiger.fetch_tiger_tracts")
     @patch("ppa.data._fetch_acs_raw_with_retry")
-    def test_non_polygon_geometry_raises(self, mock_raw: MagicMock, mock_tiger: MagicMock) -> None:
+    def test_non_polygon_geometry_raises(
+        self, mock_raw: MagicMock, mock_tiger: MagicMock
+    ) -> None:
         """Fail fast when TIGER merge does not return polygonal geometry."""
         mock_raw.return_value = MOCK_ACS_RESPONSE
         mock_tiger.return_value = gpd.GeoDataFrame(
@@ -330,9 +343,9 @@ class TestAcsPresets:
         pattern = re.compile(r"^B\d{5}_\d{3}E$")
         for name, mapping in ACS_VARIABLE_PRESETS.items():
             for code in mapping:
-                assert pattern.match(code), (
-                    f"Preset {name!r}: {code!r} does not look like a Census variable code"
-                )
+                assert pattern.match(
+                    code
+                ), f"Preset {name!r}: {code!r} does not look like a Census variable code"
 
     def test_preset_values_are_snake_case(self) -> None:
         """Column names should be snake_case identifiers."""
@@ -341,6 +354,6 @@ class TestAcsPresets:
         pattern = re.compile(r"^[a-z][a-z0-9_]*$")
         for name, mapping in ACS_VARIABLE_PRESETS.items():
             for col_name in mapping.values():
-                assert pattern.match(col_name), (
-                    f"Preset {name!r}: column {col_name!r} is not snake_case"
-                )
+                assert pattern.match(
+                    col_name
+                ), f"Preset {name!r}: column {col_name!r} is not snake_case"

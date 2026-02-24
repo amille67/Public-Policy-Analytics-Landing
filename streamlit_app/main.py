@@ -11,7 +11,9 @@ from streamlit_app.core.state import init_session_state
 from streamlit_app.core.theme import inject_premium_theme
 from streamlit_app.data.loaders import get_view_metadata, load_view
 
-st.set_page_config(page_title="TN Public Policy Analytics", page_icon="🏛️", layout="wide")
+st.set_page_config(
+    page_title="TN Public Policy Analytics", page_icon="🏛️", layout="wide"
+)
 
 init_session_state()
 inject_premium_theme()
@@ -22,13 +24,21 @@ with st.sidebar:
     metadata = get_view_metadata()
     view_options = {v["name"]: k for k, v in metadata.items()}
 
-    state.selected_view = st.selectbox("Select High-Value View", list(view_options.keys()))
+    state.selected_view = st.selectbox(
+        "Select High-Value View", list(view_options.keys())
+    )
     view_id = view_options[state.selected_view]
 
-    levels = ["lowest", "county"] if metadata[view_id]["default_level"] == "lowest" else ["county"]
+    levels = (
+        ["lowest", "county"]
+        if metadata[view_id]["default_level"] == "lowest"
+        else ["county"]
+    )
     state.selected_geo_level = st.radio("Granularity", levels, horizontal=True)
 
-    st.caption(f"ETL Vintage: 2024 | Chapter {metadata[view_id]['chapter']}")
+    st.caption(
+        f"ETL Vintage: {state.selected_year} | Chapter {metadata[view_id]['chapter']}"
+    )
 
 st.title(state.selected_view)
 

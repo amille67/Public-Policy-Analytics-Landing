@@ -69,5 +69,8 @@ def hud_county(fips_list: list[str] | None = None) -> pd.DataFrame:
     if fips_list is None:
         fips_list = ["47037"]
     return pd.DataFrame(
-        {"county_fips": fips_list, "hud_total_assisted_households": [0] * len(fips_list)}
+        {
+            "county_fips": fips_list,
+            "hud_total_assisted_households": [0] * len(fips_list),
+        }
     )

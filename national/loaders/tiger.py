@@ -58,7 +58,9 @@ def _read_tiger_zip(raw_zip: bytes, cache_key: str) -> gpd.GeoDataFrame:
     return gpd.read_file(str(shp_path))
 
 
-def fetch_tiger_tracts(year: int, state_fips: str, *, target_epsg: int = 4326) -> gpd.GeoDataFrame:
+def fetch_tiger_tracts(
+    year: int, state_fips: str, *, target_epsg: int = 4326
+) -> gpd.GeoDataFrame:
     """Fetch Census TIGER tract polygon geometries for a state.
 
     Downloads the Census Cartographic Boundary 1:500k shapefile for census
@@ -66,14 +68,18 @@ def fetch_tiger_tracts(year: int, state_fips: str, *, target_epsg: int = 4326) -
     column ready to join with ACS attribute tables.
     """
     raw_zip = _fetch_tiger_bytes(year, state_fips, "tract")
-    gdf = _read_tiger_zip(raw_zip, f"tiger_tract_{year}_{state_fips}").to_crs(epsg=target_epsg)
+    gdf = _read_tiger_zip(raw_zip, f"tiger_tract_{year}_{state_fips}").to_crs(
+        epsg=target_epsg
+    )
     if "GEOID" not in gdf.columns:
         gdf["GEOID"] = gdf["STATEFP"] + gdf["COUNTYFP"] + gdf["TRACTCE"]
     keep = ["GEOID", "STATEFP", "COUNTYFP", "TRACTCE", "NAME", "geometry"]
     return gdf[[c for c in keep if c in gdf.columns]]
 
 
-def tiger_tracts(fips_list: list[str] | None = None, *, year: int = 2022) -> gpd.GeoDataFrame:
+def tiger_tracts(
+    fips_list: list[str] | None = None, *, year: int = 2022
+) -> gpd.GeoDataFrame:
     """Return tract polygons for the given county FIPS codes."""
     if fips_list is None:
         fips_list = ["47037"]
@@ -83,7 +89,9 @@ def tiger_tracts(fips_list: list[str] | None = None, *, year: int = 2022) -> gpd
     return gdf[gdf["COUNTYFP"].isin(county_fips)].copy()
 
 
-def tiger_block_groups(fips_list: list[str] | None = None, *, year: int = 2022) -> gpd.GeoDataFrame:
+def tiger_block_groups(
+    fips_list: list[str] | None = None, *, year: int = 2022
+) -> gpd.GeoDataFrame:
     """Return block-group polygons for the given county FIPS codes."""
     if fips_list is None:
         fips_list = ["47037"]
@@ -98,7 +106,9 @@ def tiger_block_groups(fips_list: list[str] | None = None, *, year: int = 2022) 
     return gdf[gdf["COUNTYFP"].isin(county_fips)].copy()
 
 
-def tiger_demographics(fips_list: list[str] | None = None, *, year: int = 2022) -> pd.DataFrame:
+def tiger_demographics(
+    fips_list: list[str] | None = None, *, year: int = 2022
+) -> pd.DataFrame:
     """Return tract-level demographic rates for the given county FIPS codes.
 
     Fetches four ACS 5-Year variables explicitly so column names are
@@ -125,7 +135,9 @@ def tiger_demographics(fips_list: list[str] | None = None, *, year: int = 2022) 
     total = pd.to_numeric(acs["pop_total"], errors="coerce").fillna(0)
     non_hisp_white = pd.to_numeric(acs["pop_non_hisp_white"], errors="coerce").fillna(0)
     poverty = pd.to_numeric(acs["pop_poverty"], errors="coerce").fillna(0)
-    commute_transit = pd.to_numeric(acs["pop_transit_commute"], errors="coerce").fillna(0)
+    commute_transit = pd.to_numeric(acs["pop_transit_commute"], errors="coerce").fillna(
+        0
+    )
 
     out = pd.DataFrame({"GEOID": acs["GEOID"].astype(str)})
     out["population"] = total
