@@ -12,21 +12,17 @@ VIEW_DIR = Path("data/views")
 
 
 @st.cache_data(ttl=3600, show_spinner="Loading view...")
-def load_view(view_id: str, geo_level: str = "lowest") -> gpd.GeoDataFrame:
+def load_view(view_id: str, geo_level: str = "lowest") -> gpd.GeoDataFrame | pd.DataFrame:
     file = VIEW_DIR / f"view_{view_id}_{geo_level}.geoparquet"
     if not file.exists():
         st.error(f"View file missing: {file}")
-        return gpd.GeoDataFrame()
+        return pd.DataFrame()
 
     df = pd.read_parquet(file)
-    if df.empty:
-        return gpd.GeoDataFrame()
+    if df.empty or "geometry" not in df.columns:
+        return df
 
-    if "geometry" in df.columns:
-        gdf = gpd.GeoDataFrame(df, geometry="geometry")
-    else:
-        gdf = gpd.GeoDataFrame(df)
-
+    gdf = gpd.GeoDataFrame(df, geometry="geometry")
     if gdf.crs is None:
         gdf = gdf.set_crs("EPSG:4326", allow_override=True)
     return gdf.to_crs("EPSG:4326")
