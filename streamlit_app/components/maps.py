@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
-import pandas as pd  # ← added (required for pd.isna)
+import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
@@ -47,6 +47,10 @@ def render_view_map(gdf: gpd.GeoDataFrame | pd.DataFrame, view_name: str) -> Non
 
     if "geometry" not in gdf.columns:
         st.info("🌍 This view contains non-spatial tabular data. Map rendering is disabled.")
+        return
+
+    if not hasattr(gdf, "to_crs"):
+        st.info("🌍 Geometry metadata is unavailable for this view.")
         return
 
     map_gdf = gdf.to_crs("EPSG:4326").copy()
