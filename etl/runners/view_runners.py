@@ -22,12 +22,15 @@ def _as_wgs84(df: Any) -> Any:
 
 
 def run_view_01_nashville_311_risk() -> Any:
-    """View 1: 311 risk (tract count + demographics)."""
-    complaints = hubnashville.hubnashville_311(DAVIDSON_FIPS)
+    complaints = hubnashville.hubnashville_311(DAVIDSON_FIPS)   # points
     tracts = tiger.tiger_tracts(DAVIDSON_FIPS)
     demos = tiger.tiger_demographics(DAVIDSON_FIPS)
     out = tracts.merge(demos, on="GEOID", how="left")
     out["risk_score"] = out["GEOID"].map(_counts_by_tract(complaints, key="tract_geoid")).fillna(0)
+    
+    # CRITICAL: Append raw points so pydeck can draw scatterplot layer
+    if not complaints.empty:
+        out = pd.concat([out, complaints], ignore_index=True)
     return _as_wgs84(out)
 
 
