@@ -87,7 +87,7 @@ def _attach_tract_geoid(
         gdf, tracts[["GEOID", "geometry"]], how="left", predicate="intersects"
     )
     joined = joined.drop(columns=["index_right"], errors="ignore")
-    joined["tract_geoid"] = joined["GEOID"].astype(str)
+    joined["tract_geoid"] = joined["GEOID"].astype("string")
     return joined
 
 

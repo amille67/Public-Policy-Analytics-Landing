@@ -108,7 +108,9 @@ def tiger_tracts(
             geometry="geometry",
             crs="EPSG:4326",
         )
-    return pd.concat(gdfs, ignore_index=True)
+
+    merged = pd.concat(gdfs, ignore_index=True)
+    return gpd.GeoDataFrame(merged, geometry="geometry", crs="EPSG:4326")
 
 
 def tiger_block_groups(
@@ -135,7 +137,9 @@ def tiger_block_groups(
             geometry="geometry",
             crs="EPSG:4326",
         )
-    return pd.concat(gdfs, ignore_index=True)
+
+    merged = pd.concat(gdfs, ignore_index=True)
+    return gpd.GeoDataFrame(merged, geometry="geometry", crs="EPSG:4326")
 
 
 def tiger_demographics(

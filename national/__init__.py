@@ -1,7 +1,9 @@
 """National-scale orchestration and source loaders."""
 
+from typing import Any
 
-def __getattr__(name: str):
+
+def __getattr__(name: str) -> Any:
     if name == "NationalOrchestrator":
         from .orchestrator import NationalOrchestrator
 
