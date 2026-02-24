@@ -15,13 +15,11 @@ def test_views_match_expected_counts(monkeypatch: object, tmp_path: Path) -> Non
     def _fake_runner() -> pd.DataFrame:
         return pd.DataFrame({"GEOID": ["47037010100", "47037010200"], "metric": [1.0, 3.0]})
 
-    # _resolve_runner supports callables injected directly into RUNNER_MAP.
     monkeypatch.setattr(mod, "RUNNER_MAP", {k: _fake_runner for k in mod.RUNNER_MAP})
 
     written: list[Path] = []
 
     def _fake_write(df: pd.DataFrame, path: Path) -> None:
-        _ = df
         written.append(path)
 
     monkeypatch.setattr(mod, "write_parquet", _fake_write)
@@ -30,7 +28,7 @@ def test_views_match_expected_counts(monkeypatch: object, tmp_path: Path) -> Non
     config = tmp_path / "views_config.json"
     config.write_text(Path("etl/views_config.json").read_text(encoding="utf-8"), encoding="utf-8")
 
-    out = run_selected("all", config_path=config, out_dir=tmp_path / "views")
+    out = run_selected("all", config_path=config)
 
     assert out == [1, 2, 3, 4, 5, 6, 7]
     assert len(written) == 14
