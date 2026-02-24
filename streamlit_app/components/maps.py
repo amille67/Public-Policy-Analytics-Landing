@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
+import pandas as pd          # ← added (required for pd.isna)
 import pydeck as pdk
 import streamlit as st
 
@@ -53,6 +54,7 @@ def render_view_map(gdf: gpd.GeoDataFrame, view_name: str) -> None:
     if metric_col is not None:
         map_gdf = _normalize_colors(map_gdf, metric_col)
 
+    # Polygons
     poly = map_gdf[map_gdf.geometry.geom_type.astype(str).isin(["Polygon", "MultiPolygon"])].copy()
     if not poly.empty:
         layers.append(
@@ -67,6 +69,7 @@ def render_view_map(gdf: gpd.GeoDataFrame, view_name: str) -> None:
             )
         )
 
+    # Points (View 1 311 complaints, etc.)
     if has_points:
         pts = map_gdf[map_gdf.geometry.geom_type.astype(str) == "Point"].copy()
         if not pts.empty:
@@ -88,9 +91,12 @@ def render_view_map(gdf: gpd.GeoDataFrame, view_name: str) -> None:
 
     tooltip = {
         "html": (
-            f"<b>{view_name}</b><br/>GEOID: {{GEOID}}<br/>Value: {{{metric_col}}}"
+            f"""
+            <b>GEOID:</b> {{GEOID}}<br>
+            <b>Value:</b> {{{metric_col}}}
+            """
             if metric_col
-            else "<b>Record</b>"
+            else "<b>Point record</b>"
         )
     }
 
