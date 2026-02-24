@@ -54,12 +54,18 @@ class NationalOrchestrator:
         return [
             StateSpec(
                 state_fips=str(peer["state_fips"]).zfill(2),
-                county_fips=str(peer["county_fips"]).zfill(3) if peer.get("county_fips") else None,
+                county_fips=(
+                    str(peer["county_fips"]).zfill(3)
+                    if peer.get("county_fips")
+                    else None
+                ),
             )
             for peer in peers
         ]
 
-    def run(self, *, dataset: str = "acs_tracts", force: bool = False) -> dict[str, float | int]:
+    def run(
+        self, *, dataset: str = "acs_tracts", force: bool = False
+    ) -> dict[str, float | int]:
         """Run state-level ETL ingestion and write parquet partitions."""
         start = time.perf_counter()
         specs = self._state_specs()
@@ -70,7 +76,10 @@ class NationalOrchestrator:
         skipped = 0
 
         for spec in track(specs, description="Processing states..."):
-            if checkpoint_exists(spec.state_fips, dataset, self.interim_root) and not force:
+            if (
+                checkpoint_exists(spec.state_fips, dataset, self.interim_root)
+                and not force
+            ):
                 skipped += 1
                 continue
 
@@ -107,7 +116,7 @@ class NationalOrchestrator:
         *,
         state_fips: str | None = None,
         county_fips_list: list[str] | None = None,
-    ) -> "dgpd.GeoDataFrame":
+    ) -> dgpd.GeoDataFrame:
         """Load cross-state analytical view lazily via dask-geopandas.
 
         Notes

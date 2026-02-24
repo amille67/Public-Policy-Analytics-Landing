@@ -10,7 +10,6 @@ import pandas as pd
 
 from national.loaders.tiger import tiger_tracts
 
-
 DATASET_IDS = {
     "requests_311": "7qhx-rexi",
     "permits": "3h5w-q8b7",
@@ -22,7 +21,10 @@ DATASET_IDS = {
 
 def _client() -> Any:
     from sodapy import Socrata  # type: ignore[import-untyped]
-    return Socrata("data.nashville.gov", os.environ.get("SOCRATA_APP_TOKEN"), timeout=90)
+
+    return Socrata(
+        "data.nashville.gov", os.environ.get("SOCRATA_APP_TOKEN"), timeout=90
+    )
 
 
 def _records(dataset_id: str, *, limit: int = 50000) -> list[dict[str, Any]]:
@@ -38,7 +40,10 @@ def _to_gdf(records: list[dict[str, Any]]) -> gpd.GeoDataFrame:
         return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
 
     # 1. Socrata GeoJSON-style geometry column
-    geom_col = next((c for c in ["the_geom", "mapped_location", "geometry"] if c in df.columns), None)
+    geom_col = next(
+        (c for c in ["the_geom", "mapped_location", "geometry"] if c in df.columns),
+        None,
+    )
     if geom_col is not None:
         from shapely.geometry import shape
 
@@ -65,18 +70,22 @@ def _to_gdf(records: list[dict[str, Any]]) -> gpd.GeoDataFrame:
             return gpd.GeoDataFrame(
                 df.loc[valid],
                 geometry=gpd.points_from_xy(lon[valid], lat[valid]),
-                crs="EPSG:4326"
+                crs="EPSG:4326",
             )
 
     return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
 
 
-def _attach_tract_geoid(gdf: gpd.GeoDataFrame, fips_list: list[str]) -> gpd.GeoDataFrame:
+def _attach_tract_geoid(
+    gdf: gpd.GeoDataFrame, fips_list: list[str]
+) -> gpd.GeoDataFrame:
     if gdf.empty:
         gdf["tract_geoid"] = pd.Series(dtype=str)
         return gdf
     tracts = tiger_tracts(fips_list)
-    joined = gpd.sjoin(gdf, tracts[["GEOID", "geometry"]], how="left", predicate="intersects")
+    joined = gpd.sjoin(
+        gdf, tracts[["GEOID", "geometry"]], how="left", predicate="intersects"
+    )
     joined = joined.drop(columns=["index_right"], errors="ignore")
     joined["tract_geoid"] = joined["GEOID"].astype(str)
     return joined
@@ -88,11 +97,17 @@ def hubnashville_311(fips_list: list[str] | None = None) -> gpd.GeoDataFrame:
         fips_list = ["47037"]
     gdf = _to_gdf(_records(DATASET_IDS["requests_311"]))
     if gdf.empty:
-        return gpd.GeoDataFrame(columns=["tract_geoid", "risk_category"], geometry=[], crs="EPSG:4326")
+        return gpd.GeoDataFrame(
+            columns=["tract_geoid", "risk_category"], geometry=[], crs="EPSG:4326"
+        )
 
-    req_type = gdf.get("request_type", pd.Series("", index=gdf.index)).astype(str).str.lower()
+    req_type = (
+        gdf.get("request_type", pd.Series("", index=gdf.index)).astype(str).str.lower()
+    )
     gdf["risk_category"] = req_type.map(
-        lambda x: "high" if any(k in x for k in ("junk", "debris", "abandoned")) else "medium"
+        lambda x: (
+            "high" if any(k in x for k in ("junk", "debris", "abandoned")) else "medium"
+        )
     )
     out = _attach_tract_geoid(gdf, fips_list)
     return out[["tract_geoid", "risk_category", "geometry"]]
@@ -104,14 +119,20 @@ def hubnashville_permits(fips_list: list[str] | None = None) -> gpd.GeoDataFrame
         fips_list = ["47037"]
     gdf = _to_gdf(_records(DATASET_IDS["permits"]))
     if gdf.empty:
-        return gpd.GeoDataFrame(columns=["tract_geoid", "permit_type"], geometry=[], crs="EPSG:4326")
+        return gpd.GeoDataFrame(
+            columns=["tract_geoid", "permit_type"], geometry=[], crs="EPSG:4326"
+        )
 
     permit_col = gdf.get("permit_type", pd.Series("", index=gdf.index)).astype(str)
     # Case-insensitive filter (handles "DEMOLITION", "Rehab/Renovation", etc.)
-    gdf = gdf[permit_col.str.lower().str.contains("demolition|rehab|renovation", na=False)].copy()
+    gdf = gdf[
+        permit_col.str.lower().str.contains("demolition|rehab|renovation", na=False)
+    ].copy()
 
     out = _attach_tract_geoid(gdf, fips_list)
-    out["permit_type"] = out.get("permit_type", pd.Series("", index=out.index)).astype(str)
+    out["permit_type"] = out.get("permit_type", pd.Series("", index=out.index)).astype(
+        str
+    )
     return out[["tract_geoid", "permit_type", "geometry"]]
 
 

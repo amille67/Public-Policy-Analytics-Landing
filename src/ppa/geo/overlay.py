@@ -51,9 +51,13 @@ def apportion_by_area(
     tgt_id = target_id_col or "_target_id"
 
     if src_id in tgt.columns and src_id != source_id_col:
-        raise ValueError(f"column name collision in target for generated source id: {src_id}")
+        raise ValueError(
+            f"column name collision in target for generated source id: {src_id}"
+        )
     if tgt_id in src.columns and tgt_id != target_id_col:
-        raise ValueError(f"column name collision in source for generated target id: {tgt_id}")
+        raise ValueError(
+            f"column name collision in source for generated target id: {tgt_id}"
+        )
 
     if source_id_col is None:
         src[src_id] = src.index.astype(str)

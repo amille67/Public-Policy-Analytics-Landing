@@ -36,12 +36,36 @@ def load_view(view_id: str, geo_level: str = "lowest") -> gpd.GeoDataFrame:
 def get_view_metadata() -> dict[str, dict[str, str | int]]:
     """Metadata map for the seven high-value views."""
     return {
-        "01": {"name": "Nashville 311 Distress Risk", "chapter": 5, "default_level": "lowest"},
-        "02": {"name": "Nashville Permits Transition", "chapter": 2, "default_level": "lowest"},
-        "03": {"name": "Nashville Property Value Equity", "chapter": 3, "default_level": "lowest"},
-        "04": {"name": "Nashville Urban Services District", "chapter": 2, "default_level": "lowest"},
-        "05": {"name": "Nashville Industrial Footprints", "chapter": 5, "default_level": "lowest"},
-        "06": {"name": "Nashville Transit Access Equity", "chapter": 1, "default_level": "lowest"},
+        "01": {
+            "name": "Nashville 311 Distress Risk",
+            "chapter": 5,
+            "default_level": "lowest",
+        },
+        "02": {
+            "name": "Nashville Permits Transition",
+            "chapter": 2,
+            "default_level": "lowest",
+        },
+        "03": {
+            "name": "Nashville Property Value Equity",
+            "chapter": 3,
+            "default_level": "lowest",
+        },
+        "04": {
+            "name": "Nashville Urban Services District",
+            "chapter": 2,
+            "default_level": "lowest",
+        },
+        "05": {
+            "name": "Nashville Industrial Footprints",
+            "chapter": 5,
+            "default_level": "lowest",
+        },
+        "06": {
+            "name": "Nashville Transit Access Equity",
+            "chapter": 1,
+            "default_level": "lowest",
+        },
         "07": {
             "name": "National Housing Context (TN Highlight)",
             "chapter": "National",

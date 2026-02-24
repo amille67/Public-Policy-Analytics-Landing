@@ -11,15 +11,18 @@ def test_fetch_qcew_injects_api_key_from_env() -> None:
     csv = "own_code,industry_code,annual_avg_emplvl\n5,44,100\n"
 
     # Patch the cached raw function directly (bypasses joblib cache layer)
-    with patch("national.loaders.bls._fetch_qcew_raw", return_value=csv) as mock_raw, patch.dict(
-        "os.environ", {"BLS_API_KEY": "abc123"}
+    with (
+        patch("national.loaders.bls._fetch_qcew_raw", return_value=csv) as mock_raw,
+        patch.dict("os.environ", {"BLS_API_KEY": "abc123"}),
     ):
         fetch_qcew(2022, "42101")
 
     assert mock_raw.called
     # _fetch_qcew_raw(year, quarter, area_fips, registration_key)
     call = mock_raw.call_args
-    registration_key = call.kwargs.get("registration_key") if call.kwargs else call.args[3]
+    registration_key = (
+        call.kwargs.get("registration_key") if call.kwargs else call.args[3]
+    )
     assert registration_key == "abc123"
 
 

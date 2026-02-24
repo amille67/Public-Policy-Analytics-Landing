@@ -58,7 +58,9 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 # ## 0 — Configuration
 
 # %%
-_CONFIG_PATH = Path(__file__).parent.parent / "config" / "national" / "ch01_national.yaml"
+_CONFIG_PATH = (
+    Path(__file__).parent.parent / "config" / "national" / "ch01_national.yaml"
+)
 with open(_CONFIG_PATH) as _f:
     CONFIG: dict = yaml.safe_load(_f)
 
@@ -220,9 +222,9 @@ for msa_name, gdf in msa_gdfs.items():
 
 summary_df = pd.DataFrame(summary_rows).sort_values("median_rent", ascending=False)
 # Percentile rank within the peer sample (national run would use all CBSAs)
-summary_df["national_pctile"] = (
-    summary_df["median_rent"].rank(pct=True) * 100
-).round(1)
+summary_df["national_pctile"] = (summary_df["median_rent"].rank(pct=True) * 100).round(
+    1
+)
 
 print(summary_df.to_string(index=False))
 
@@ -240,7 +242,13 @@ bars = ax.barh(
 )
 ax.set_xlabel("Median Tract Rent (ACS 2022, USD)", fontsize=11)
 ax.set_title("Peer-MSA Rent Distribution — National Percentile Context", fontsize=12)
-ax.axvline(summary_df["median_rent"].mean(), color="navy", linestyle="--", linewidth=1.2, label="Peer mean")
+ax.axvline(
+    summary_df["median_rent"].mean(),
+    color="navy",
+    linestyle="--",
+    linewidth=1.2,
+    label="Peer mean",
+)
 ax.legend()
 fig.tight_layout()
 fig.savefig(OUT_FIGURES / "peer_msa_rent_bar.png", dpi=150, bbox_inches="tight")

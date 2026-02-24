@@ -31,7 +31,10 @@ def build_spacetime_panel(
 
     if agg_col is None:
         out = (
-            df.groupby([geoid_col, "time_bin"]).size().rename("ping_count").reset_index()
+            df.groupby([geoid_col, "time_bin"])
+            .size()
+            .rename("ping_count")
+            .reset_index()
         )
     else:
         if agg_col not in df.columns:

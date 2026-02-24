@@ -8,7 +8,6 @@ import pandas as pd
 
 from national.loaders import housing, hubnashville, osm, tiger
 
-
 DAVIDSON_FIPS = ["47037"]
 
 
@@ -29,7 +28,9 @@ def run_view_01_nashville_311_risk() -> Any:
     demos = tiger.tiger_demographics(DAVIDSON_FIPS)
 
     out = tracts.merge(demos, on="GEOID", how="left")
-    out["risk_score"] = out["GEOID"].map(_counts_by_tract(complaints, key="tract_geoid")).fillna(0)
+    out["risk_score"] = (
+        out["GEOID"].map(_counts_by_tract(complaints, key="tract_geoid")).fillna(0)
+    )
 
     # safely preserve raw points for Streamlit
     if not complaints.empty:
@@ -47,14 +48,18 @@ def run_view_02_nashville_permits_transition() -> Any:
     permits = hubnashville.hubnashville_permits(DAVIDSON_FIPS)
     tracts = tiger.tiger_tracts(DAVIDSON_FIPS)
     out = tracts.copy()
-    out["permit_transition_count"] = out["GEOID"].map(_counts_by_tract(permits)).fillna(0)
+    out["permit_transition_count"] = (
+        out["GEOID"].map(_counts_by_tract(permits)).fillna(0)
+    )
     return _as_wgs84(out)
 
 
 def run_view_03_nashville_property_value_equity() -> Any:
     assessor = hubnashville.hubnashville_assessor(DAVIDSON_FIPS)
     tracts = tiger.tiger_tracts(DAVIDSON_FIPS)
-    tract_stats = assessor.groupby("tract_geoid", as_index=False)["appraised_value"].median()
+    tract_stats = assessor.groupby("tract_geoid", as_index=False)[
+        "appraised_value"
+    ].median()
     tract_stats = tract_stats.rename(
         columns={"tract_geoid": "GEOID", "appraised_value": "median_assessed_value"}
     )
@@ -78,7 +83,9 @@ def run_view_05_nashville_industrial_footprints() -> Any:
     tracts = tiger.tiger_tracts(DAVIDSON_FIPS)
     industrial = osm.osm_industrial_footprints(DAVIDSON_FIPS)
     out = tracts.copy()
-    out["industrial_site_count"] = out["GEOID"].map(_counts_by_tract(industrial)).fillna(0)
+    out["industrial_site_count"] = (
+        out["GEOID"].map(_counts_by_tract(industrial)).fillna(0)
+    )
     return _as_wgs84(out)
 
 
