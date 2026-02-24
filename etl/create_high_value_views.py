@@ -20,6 +20,7 @@ from national.loaders.tiger import tiger_tracts
 from ppa.geo.overlay import apportion_by_area
 from ppa.io.writers import write_geoparquet, write_parquet
 
+
 RUNNER_MAP = {
     "01": "run_view_01_nashville_311_risk",
     "02": "run_view_02_nashville_permits_transition",
@@ -31,6 +32,10 @@ RUNNER_MAP = {
 }
 
 
+def _project_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
 def _load_config(path: Path) -> list[dict[str, Any]]:
     config = json.loads(path.read_text(encoding="utf-8"))
     views = config.get("views", [])
@@ -40,23 +45,19 @@ def _load_config(path: Path) -> list[dict[str, Any]]:
 
 
 def _resolve_runner(runner_id: str) -> Any:
-    """Resolve a runner function by ID.
-
-    Supports string function names (production) and callable values
-    (injected directly for testing via monkeypatch).
-    """
     from etl.runners import view_runners
-
     val = RUNNER_MAP[runner_id]
-    # Allow callables to be injected directly for testability.
     if callable(val):
         return val
     return getattr(view_runners, val)
 
 
-def _rollup_county(lowest: Any, view_id: int) -> Any:
+def _rollup_county(lowest: Any, view_id: int, fips_list: list[str] | None = None) -> Any:
+    if fips_list is None:
+        fips_list = ["47037"]
+
     if "geometry" not in lowest.columns or lowest.geometry.is_empty.all():
-        # View 7 – non-spatial
+        # non-spatial View 7
         county = pd.DataFrame(lowest).copy()
         if "GEOID" in county.columns:
             county["county_fips"] = county["GEOID"].astype(str).str[:5]
@@ -69,26 +70,23 @@ def _rollup_county(lowest: Any, view_id: int) -> Any:
             work["county_fips"] = work["GEOID"].astype(str).str[:5]
             numeric_cols = [
                 c for c in work.columns
-                if pd.api.types.is_numeric_dtype(work[c])
-                and c not in ("county_fips", "GEOID", "geometry")
+                if pd.api.types.is_numeric_dtype(work[c]) and c not in ("county_fips", "GEOID", "geometry")
             ]
             agg_dict = {c: "sum" for c in numeric_cols}
-            county = work.dissolve(
-                by="county_fips",
-                aggfunc=agg_dict if agg_dict else "first",
-                as_index=False
-            )
+            county = work.dissolve(by="county_fips", aggfunc=agg_dict if agg_dict else "first", as_index=False)
         else:
-            # fallback apportion
-            county_polys = tiger_tracts(["47037"])[["GEOID", "geometry"]].copy()
+            county_polys = tiger_tracts(fips_list)[["GEOID", "geometry"]].copy()
             county_polys["county_fips"] = county_polys["GEOID"].astype(str).str[:5]
             county_polys = county_polys.dissolve(by="county_fips", as_index=False)
             numeric_cols = [c for c in lowest.columns if pd.api.types.is_numeric_dtype(lowest[c])]
-            county = apportion_by_area(lowest, county_polys[["county_fips", "geometry"]],
-                                       value_columns=numeric_cols, target_id_col="county_fips")
+            county = apportion_by_area(
+                lowest, county_polys[["county_fips", "geometry"]],
+                value_columns=numeric_cols, target_id_col="county_fips"
+            )
+
     county["view_id"] = view_id
     county["geo_level"] = "county"
-    county["tags"] = county["view_id"].map(lambda v: json.dumps({"city": "Nashville", "view_id": int(v)}))
+    county["tags"] = json.dumps({"city": "Nashville", "view_id": int(view_id)})
     return county
 
 
@@ -105,14 +103,12 @@ def _save_outputs(lowest: Any, county: Any, view_id: int, out_dir: Path) -> None
     low_path = out_dir / f"view_{view_id:02d}_lowest.geoparquet"
     county_path = out_dir / f"view_{view_id:02d}_county.geoparquet"
 
-    # Use write_geoparquet only for true GeoDataFrames with a geometry column;
-    # fall back to plain parquet for non-spatial outputs (e.g. View 7).
-    if isinstance(lowest, gpd.GeoDataFrame) and "geometry" in lowest.columns:
+    if hasattr(lowest, "geometry") and "geometry" in lowest.columns and not lowest.geometry.is_empty.all():
         write_geoparquet(lowest, low_path)
     else:
         write_parquet(pd.DataFrame(lowest), low_path)
 
-    if isinstance(county, gpd.GeoDataFrame) and "geometry" in county.columns:
+    if hasattr(county, "geometry") and "geometry" in county.columns and not county.geometry.is_empty.all():
         write_geoparquet(county, county_path)
     else:
         write_parquet(pd.DataFrame(county), county_path)
@@ -122,8 +118,11 @@ def run_selected(
     views: str,
     *,
     config_path: Path = Path("etl/views_config.json"),
-    out_dir: Path = Path("data/views"),
+    out_dir: Path | None = None,
 ) -> list[int]:
+    if out_dir is None:
+        out_dir = _project_root() / "data" / "views"
+
     requested = None if views == "all" else {int(x.strip()) for x in views.split(",") if x.strip()}
     executed: list[int] = []
 
@@ -134,16 +133,15 @@ def run_selected(
 
         runner = _resolve_runner(spec["runner_id"])
         lowest = _annotate_lowest(runner(), view_id)
-        county = _rollup_county(lowest, view_id)
+        county = _rollup_county(lowest, view_id, fips_list=["47037"])
 
         if len(county) == 0:
             raise ValueError(f"View {view_id}: county roll-up produced zero rows")
-        if (
-            isinstance(lowest, gpd.GeoDataFrame)
-            and hasattr(lowest, "geometry")
-            and not bool(lowest.geometry.is_valid.all())
-        ):
-            raise ValueError(f"View {view_id}: invalid geometries detected")
+
+        # only validate geometry on spatial views
+        if hasattr(lowest, "geometry") and "geometry" in lowest.columns:
+            if not bool(lowest.geometry.is_valid.all()):
+                raise ValueError(f"View {view_id}: invalid geometries detected")
 
         _save_outputs(lowest, county, view_id, out_dir)
         executed.append(view_id)
@@ -154,9 +152,9 @@ def run_selected(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build Nashville high-value pre-computed views")
     parser.add_argument("--views", default="all", help="all or comma-separated IDs (e.g., 1,3,7)")
-    parser.add_argument("--out-dir", default="data/views", help="Output directory for geoparquet files")
+    parser.add_argument("--out-dir", type=Path, default=None, help="Output directory")
     args = parser.parse_args()
-    run_selected(args.views, out_dir=Path(args.out_dir))
+    run_selected(args.views, out_dir=args.out_dir)
 
 
 if __name__ == "__main__":
