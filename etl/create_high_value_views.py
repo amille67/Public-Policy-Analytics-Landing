@@ -56,32 +56,39 @@ def _resolve_runner(runner_id: str) -> Any:
 
 def _rollup_county(lowest: Any, view_id: int) -> Any:
     if "geometry" not in lowest.columns or lowest.geometry.is_empty.all():
+        # View 7 – non-spatial
         county = pd.DataFrame(lowest).copy()
-        if "county_fips" not in county.columns and "GEOID" in county.columns:
+        if "GEOID" in county.columns:
             county["county_fips"] = county["GEOID"].astype(str).str[:5]
         if "county_fips" in county.columns:
-            numeric_cols = [c for c in county.columns if pd.api.types.is_numeric_dtype(county[c])]
-            county = county.groupby("county_fips", as_index=False)[numeric_cols].sum()
+            numeric = [c for c in county.columns if pd.api.types.is_numeric_dtype(county[c])]
+            county = county.groupby("county_fips", as_index=False)[numeric].sum()
     else:
         if "GEOID" in lowest.columns:
             work = lowest.copy()
             work["county_fips"] = work["GEOID"].astype(str).str[:5]
-            county = work.dissolve(by="county_fips", aggfunc="sum", as_index=False)
+            numeric_cols = [
+                c for c in work.columns
+                if pd.api.types.is_numeric_dtype(work[c])
+                and c not in ("county_fips", "GEOID", "geometry")
+            ]
+            agg_dict = {c: "sum" for c in numeric_cols}
+            county = work.dissolve(
+                by="county_fips",
+                aggfunc=agg_dict if agg_dict else "first",
+                as_index=False
+            )
         else:
+            # fallback apportion
             county_polys = tiger_tracts(["47037"])[["GEOID", "geometry"]].copy()
             county_polys["county_fips"] = county_polys["GEOID"].astype(str).str[:5]
             county_polys = county_polys.dissolve(by="county_fips", as_index=False)
             numeric_cols = [c for c in lowest.columns if pd.api.types.is_numeric_dtype(lowest[c])]
-            county = apportion_by_area(
-                lowest,
-                county_polys[["county_fips", "geometry"]],
-                value_columns=numeric_cols,
-                target_id_col="county_fips",
-            )
-
+            county = apportion_by_area(lowest, county_polys[["county_fips", "geometry"]],
+                                       value_columns=numeric_cols, target_id_col="county_fips")
     county["view_id"] = view_id
     county["geo_level"] = "county"
-    county["tags"] = json.dumps({"city": "Nashville", "view_id": int(view_id)})
+    county["tags"] = county["view_id"].map(lambda v: json.dumps({"city": "Nashville", "view_id": int(v)}))
     return county
 
 
