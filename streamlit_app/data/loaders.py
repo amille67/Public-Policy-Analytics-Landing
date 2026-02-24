@@ -23,9 +23,13 @@ def load_view(view_id: str, geo_level: str = "lowest") -> gpd.GeoDataFrame | pd.
         return df
 
     if df["geometry"].isna().all():
-        return df
+        return df.drop(columns=["geometry"]).copy()
 
-    gdf = gpd.GeoDataFrame(df, geometry="geometry")
+    try:
+        gdf = gpd.GeoDataFrame(df, geometry="geometry")
+    except Exception:
+        return df.drop(columns=["geometry"]).copy()
+
     if gdf.crs is None:
         gdf = gdf.set_crs("EPSG:4326", allow_override=True)
     return gdf.to_crs("EPSG:4326")

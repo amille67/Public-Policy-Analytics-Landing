@@ -45,12 +45,8 @@ def render_view_map(gdf: gpd.GeoDataFrame | pd.DataFrame, view_name: str) -> Non
         st.warning("No records to display.")
         return
 
-    if "geometry" not in gdf.columns:
+    if not isinstance(gdf, gpd.GeoDataFrame):
         st.info("🌍 This view contains non-spatial tabular data. Map rendering is disabled.")
-        return
-
-    if not hasattr(gdf, "to_crs"):
-        st.info("🌍 Geometry metadata is unavailable for this view.")
         return
 
     map_gdf = gdf.to_crs("EPSG:4326").copy()

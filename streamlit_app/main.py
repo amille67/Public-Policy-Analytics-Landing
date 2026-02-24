@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import geopandas as gpd
 import streamlit as st
 
 from streamlit_app.components.cards import render_kpi_cards
@@ -62,7 +63,7 @@ with right:
 - Data served at **lowest** or **county** level.
         """
     )
-    if "geometry" in gdf.columns:
+    if isinstance(gdf, gpd.GeoDataFrame):
         export_data = gdf.to_json().encode("utf-8")
         mime, ext = "application/geo+json", "geojson"
     else:
