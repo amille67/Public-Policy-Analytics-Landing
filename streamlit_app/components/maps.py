@@ -18,19 +18,23 @@ def _metric_column(gdf: gpd.GeoDataFrame) -> str | None:
 
 def _normalize_colors(gdf: gpd.GeoDataFrame, metric_col: str) -> gpd.GeoDataFrame:
     series = gdf[metric_col].astype(float)
-    min_v = float(series.min())
-    max_v = float(series.max())
+    min_v = float(series.min(skipna=True) or 0)
+    max_v = float(series.max(skipna=True) or 1)
     denom = (max_v - min_v) if max_v != min_v else 1.0
 
-    gdf = gdf.copy()
-    gdf["__color"] = series.apply(
-        lambda x: [
-            int(255 * ((float(x) - min_v) / denom)),
+    def _get_color(x):
+        if pd.isna(x):
+            return [150, 150, 150, 100]   # neutral gray for points
+        val = float(x)
+        return [
+            int(255 * ((val - min_v) / denom)),
             60,
-            int(255 - 255 * ((float(x) - min_v) / denom)),
-            220,
+            int(255 - 255 * ((val - min_v) / denom)),
+            220
         ]
-    )
+
+    gdf = gdf.copy()
+    gdf["__color"] = series.apply(_get_color)
     return gdf
 
 
