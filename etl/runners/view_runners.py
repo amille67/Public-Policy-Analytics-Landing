@@ -8,6 +8,7 @@ import pandas as pd
 
 from national.loaders import housing, hubnashville, osm, tiger
 
+
 DAVIDSON_FIPS = ["47037"]
 
 
@@ -22,15 +23,23 @@ def _as_wgs84(df: Any) -> Any:
 
 
 def run_view_01_nashville_311_risk() -> Any:
-    complaints = hubnashville.hubnashville_311(DAVIDSON_FIPS)   # points
+    """View 1: 311 risk + raw complaint points (for mixed-layer Streamlit map)."""
+    complaints = hubnashville.hubnashville_311(DAVIDSON_FIPS)
     tracts = tiger.tiger_tracts(DAVIDSON_FIPS)
     demos = tiger.tiger_demographics(DAVIDSON_FIPS)
+
     out = tracts.merge(demos, on="GEOID", how="left")
     out["risk_score"] = out["GEOID"].map(_counts_by_tract(complaints, key="tract_geoid")).fillna(0)
-    
-    # CRITICAL: Append raw points so pydeck can draw scatterplot layer
+
+    # safely preserve raw points for Streamlit
     if not complaints.empty:
+        complaints = complaints.copy()
+        # align columns that may be missing in points
+        for col in out.columns:
+            if col not in complaints.columns and col != "geometry":
+                complaints[col] = None
         out = pd.concat([out, complaints], ignore_index=True)
+
     return _as_wgs84(out)
 
 
