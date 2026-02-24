@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import geopandas as gpd  # type: ignore[import-untyped]
 import yaml
 from rich.progress import track
 
@@ -22,6 +21,7 @@ from ppa.io.lakehouse import (
 
 if TYPE_CHECKING:  # pragma: no cover
     import dask_geopandas as dgpd
+    import geopandas as gpd
 
 
 @dataclass(frozen=True)

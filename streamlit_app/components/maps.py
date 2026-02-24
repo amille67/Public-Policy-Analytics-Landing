@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
-import pandas as pd  # ← added (required for pd.isna)
+import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
@@ -39,10 +39,14 @@ def _normalize_colors(gdf: gpd.GeoDataFrame, metric_col: str) -> gpd.GeoDataFram
     return gdf
 
 
-def render_view_map(gdf: gpd.GeoDataFrame, view_name: str) -> None:
+def render_view_map(gdf: gpd.GeoDataFrame | pd.DataFrame, view_name: str) -> None:
     """Render mixed geospatial view with polygons and optional points."""
     if gdf.empty:
-        st.warning("No geospatial records to map.")
+        st.warning("No records to display.")
+        return
+
+    if not isinstance(gdf, gpd.GeoDataFrame):
+        st.info("🌍 This view contains non-spatial tabular data. Map rendering is disabled.")
         return
 
     map_gdf = gdf.to_crs("EPSG:4326").copy()

@@ -105,6 +105,7 @@ known-first-party = ["ppa", "national", "chapters"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = "-v --tb=short"
 markers = [
     "integration: marks tests requiring external data or network (deselect with '-m \"not integration\"')",

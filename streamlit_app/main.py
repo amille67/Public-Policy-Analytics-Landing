@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import geopandas as gpd
 import streamlit as st
 
 from streamlit_app.components.cards import render_kpi_cards
@@ -42,7 +43,7 @@ with st.sidebar:
 
 st.title(state.selected_view)
 
-with st.spinner("Loading geospatial layer..."):
+with st.spinner("Loading data layer..."):
     gdf = load_view(view_id, state.selected_geo_level)
 
 if gdf.empty:
@@ -62,12 +63,18 @@ with right:
 - Data served at **lowest** or **county** level.
         """
     )
-    geojson_bytes = gdf.to_json().encode("utf-8")
+    if isinstance(gdf, gpd.GeoDataFrame):
+        export_data = gdf.to_json().encode("utf-8")
+        mime, ext = "application/geo+json", "geojson"
+    else:
+        export_data = gdf.to_csv(index=False).encode("utf-8")
+        mime, ext = "text/csv", "csv"
+
     st.download_button(
-        "Export Current View (GeoJSON)",
-        data=geojson_bytes,
-        file_name=f"view_{view_id}_{state.selected_geo_level}.geojson",
-        mime="application/geo+json",
+        f"Export Current View ({ext.upper()})",
+        data=export_data,
+        file_name=f"view_{view_id}_{state.selected_geo_level}.{ext}",
+        mime=mime,
     )
 
 with st.expander("Methodology & Data Sources"):
