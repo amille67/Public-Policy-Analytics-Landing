@@ -1,82 +1,219 @@
-# Public Policy Analytics
+# Public Policy Analytics — Python Reimplementation
 
-[Public Policy Analytics](https://urbanspatial.github.io/PublicPolicyAnalytics/) is a new book by [Ken Steif, Ph.D](https://twitter.com/KenSteif) that teaches at the intersection of data science and public policy. The book is available [online](https://urbanspatial.github.io/PublicPolicyAnalytics/) and eventually, in print. Designed for students studying City Planning and related disciplines, the book teaches both code and context toward improved public-sector decision making. Readers can expect an introduction to R, geospatial data science, and machine learning, conveyed through real world use cases of data science in government.
+> **This is the Python reimplementation and national-scale extension of Ken Steif's
+> [Public Policy Analytics](https://urbanspatial.github.io/PublicPolicyAnalytics/)
+> case studies.** The original book teaches R-based data science at the intersection
+> of geospatial analysis and public policy. This repository ports every chapter to
+> idiomatic Python (`geopandas`, `scikit-learn`, `statsmodels`) and extends each
+> case study with national-scale comparisons using open federal data (Census/ACS,
+> BLS, CDC WONDER).
 
-All of the book's data is free and open source, compiled from across the web. Each chapter includes API calls that read data directly into R. However, for posterity, the [DATA](https://github.com/urbanSpatial/Public-Policy-Analytics-Landing/tree/master/DATA) folder on this repo has all the data, organized by chapter. The sections below provide a description of each dataset and the original source, when applicable.
+Original book: <https://urbanspatial.github.io/PublicPolicyAnalytics/>
+Original repo: <https://github.com/urbanSpatial/Public-Policy-Analytics-Landing>
 
-### Chapter 1: Indicators for Transit Oriented Development
+---
 
-Following the Introduction, Chapter 1 introduces indicators as an important tool for simplifying and communicating complex processes to non-technical decision makers. Introducing the `tidyverse`, `tidycensus`, and `sf` packages, this chapter analyzes whether Philadelphia renters are willing to pay a premium for transit amenities.
+## Installation
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| SEPTA_Broad | Stations on the Broad Street line | http://septaopendata-septa.opendata.arcgis.com/datasets/septa-broad-street-line-stations | geojson | DATA/Chapter1 |
-| SEPTA_El | Stations on the Market Frankford (El) line | http://septaopendata-septa.opendata.arcgis.com/datasets/septa-market-frankford-line-stations | geojson | DATA/Chapter1 |
-| PHL_CT00 | Philadelphia Census Tracts with data on the total population, number of white residents, educational attainment, median household income, median rent, and poverty for the year 2000 | collected with `tidycensus` | geojson | DATA/Chapter1 |
+> **Import name:** `import ppa` — the distribution is named `ppa` on PyPI
+> and maps directly to the importable package `ppa`.
 
-### Chapter 2: Expanding the Urban Growth Boundary
+### Option A — conda / mamba (recommended for GDAL-heavy environments)
 
-Chapter 2 explores the discontinuous nature of boundaries to understand how an Urban Growth Area in Lancaster County, PA affects suburban sprawl.
+`geopandas` and `rasterio` link against system GDAL, which `conda-forge`
+handles cleanly.  This is the fastest path on Apple Silicon and Windows.
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| studyAreaTowns | Towns inside of the Lancaster County study area | http://www.pasda.psu.edu/uci/DataSummary.aspx?dataset=1267 | geojson | DATA/Chapter2 |
-| Urban_Growth_Boundary | Lancaster County's Urban Growth Area | http://www.pasda.psu.edu/uci/DataSummary.aspx?dataset=1274 | geojson | DATA/Chapter2 |
-| LancasterCountyBuildings | Footprints for a sample of 60% of buildings in the study area | http://www.pasda.psu.edu/uci/DataSummary.aspx?dataset=1257 | geojson | DATA/Chapter2 |
-| LancasterCountyBoundary | Spatial extent of Lancaster County | http://www.pasda.psu.edu/uci/DataSummary.aspx?dataset=1260 | geojson | DATA/Chapter2 |
-| LancasterGreenSpace | Non-developed land cover in the study area | http://www.pasda.psu.edu/uci/DataSummary.aspx?dataset=3154 | geojson | DATA/Chapter2 |
+```bash
+conda create -n ppa python=3.12 -c conda-forge
+conda activate ppa
+conda install -c conda-forge geopandas rasterio pyproj rtree shapely
+git clone https://github.com/amille67/Public-Policy-Analytics-Landing.git
+cd Public-Policy-Analytics-Landing
+pip install -e ".[dev]"   # remaining pure-Python deps
+```
 
-### Chapters 3 & 4: Intro to Geospatial Machine Learning
+### Option B — pip / uv (Linux + most CI environments)
 
-Chapters 3 and 4 provide a first look at geospatial predictive modeling, forecasting home prices in Boston, MA. Chapter 3 introduces linear regression, goodness of fit metrics, and cross-validation, with the goal of assessing model accuracy and generalizability. Chapter 4 builds on the initial analysis to account for the 'spatial process' or pattern of home prices.
+```bash
+git clone https://github.com/amille67/Public-Policy-Analytics-Landing.git
+cd Public-Policy-Analytics-Landing
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| Boston_Nhoods | Neighborhoods in Boston, MA | https://data.boston.gov/dataset/boston-neighborhoods | shapefile | DATA/Chapter3_4/Boston_Nhoods |
-| bostonHousePriceData_clean | Sale price and housing characteristics of homes sold in Boston between August 2015 and August 2016 | https://data.boston.gov/dataset/property-assessment | csv | DATA/Chapter3_4 |
-| bostonCrimes | Crimes in Boston that occurred between August 2015 and August 2016 | https://data.boston.gov/dataset/crime-incident-reports-august-2015-to-date-source-new-system | csv | DATA/Chapter3_4 |
-| boston_sf_Ch1_wrangled | All data wrangled in Chapter 3 that can be used in Chapter 4 if analysis is not completed all at once |  | geojson | DATA/Chapter3_4
+# Install in editable mode with all extras
+pip install -e ".[dev,raster]"
 
-### Chapter 5: Geospatial Risk Modeling - Predictive Policing
+# Or with uv (faster dependency resolution)
+uv pip install -e ".[dev,raster]"
+```
 
-Chapter 5 tackles the controversial topic of Predictive Policing, forecasting burglary risk in Chicago. The argument is made that converting Broken Windows theory into Broken Window policing, can bake bias directly into a predictive model and lead to a discriminatory resource allocation tool. The concept of generalizability remains key.
+### Environment Variables
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| chicagoBoundary | Boundary of Chicago, IL | https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-City/ewy2-6yfk | geojson | DATA/Chapter5 |
-| chicagoNhoods | Neighborhoods in the City of Chicago | https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Neighborhoods/bbvz-uum9 | geojson | DATA/Chapter5 |
-| policeDistricts | Chicago police districts | https://data.cityofchicago.org/Public-Safety/Boundaries-Police-Districts/4dt9-88ua | geojson | DATA/Chapter5 |
-| policeBeats | Chicago police beats | https://data.cityofchicago.org/Public-Safety/Boundaries-Police-Beats-current-/aerh-rz74 | geojson | DATA/Chapter5 |
-| abandonedBuildings | 311 complaints about abandoned buildings in 2017 | https://data.cityofchicago.org/Service-Requests/311-Service-Requests-Vacant-and-Abandoned-Building/7nii-7srd | geojson | DATA/Chapter5
-| abandonedCars | 311 calls on abandoned vehicles in 2017 | https://data.cityofchicago.org/Service-Requests/311-Service-Requests-Abandoned-Vehicles/3c9v-pnva | geojson | DATA/Chapter5
-| graffiti | 311 calls reporting graffiti in 2017 | https://data.cityofchicago.org/Service-Requests/311-Service-Requests-Graffiti-Removal-Historical/hec5-y4x5 | geojson | DATA/Chapter5
-| liquorRetail | Locations of businesses where liquor is sold | https://data.cityofchicago.org/Community-Economic-Development/Business-Licenses-Current-Liquor-and-Public-Places/nrmj-3kcf | geojson | DATA/Chapter5
-| sanitation | Sanitation code complaints made to 311 in 2017 |https://data.cityofchicago.org/Service-Requests/311-Service-Requests-Sanitation-Code-Complaints-Hi/me59-5fac | geojson | DATA/Chapter5
-| streetLightsOut | 311 calls reporting street light outages in 2017 | https://data.cityofchicago.org/Service-Requests/311-Service-Requests-Street-Lights-All-Out-Histori/zuxi-7xem | geojson | DATA/Chapter5
-| burglaries17 | Burglaries that occurred in Chicago in 2017 | https://data.cityofchicago.org/Public-Safety/Crimes-2017/d62x-nvdr | geojson | DATA/Chapter5
-| burglaries18 | Burglaries that occurred in Chicago in 2018 | https://data.cityofchicago.org/Public-Safety/Crimes-2018/3i3m-jwuy | geojson | DATA/Chapter5
+Copy `.env.example` to `.env` and fill in the values that apply to you:
 
-### Chapter 6: People-Based ML Models
+```bash
+cp .env.example .env
+# edit .env — at minimum set CENSUS_API_KEY for national extensions
+```
 
-Chapter 6 introduces the use of machine learning in estimating risk/opportunity for individuals. The resulting intelligence is then used to develop a cost/benefit analysis for Bounce to Work! a pogo-transit start-up. The goal is to predict the probability a client will 'churn' or not re-up their membership. This is valuable for public-sector data scientists working with individuals and families.
+Variables are loaded automatically at package import time via `python-dotenv`.
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| churnBounce | A churn-related dataset published by IBM. Field names have been modified to better fit the use case | https://www.kaggle.com/blastchar/telco-customer-churn/home | csv | DATA/Chapter6 |
-| housingSubsidy | Adopted from Moro & Rita this dataset is provided for the homework assignment | http://archive.ics.uci.edu/ml/datasets/Bank+Marketing | csv | DATA/Chapter6 |
+### Data Setup
 
-### Chapter 7: People-Based ML Models: Algorithmic Fairness
+The repository ships with a `DATA/` directory containing the original book
+datasets. Run the consolidation script to move data into the standard layout:
 
-Chapter 7 evaluates people-based algorithms for 'disparate impact' - the idea that even if an algorithm is not designed to discriminte on its face, it may still have a discriminatory effect. This chapter returns to a criminal justice use case, estimating the _social_ costs and benefits.
+```bash
+bash cleanup.sh
+```
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| compas-scores-two-years | Dataset of defendants in Broward County, FL screened by COMPAS over two years (2013 and 2014) | https://github.com/propublica/compas-analysis/blob/master/compas-scores-two-years.csv | csv | DATA/Chapter7 |
+This copies `DATA/` contents into `data/raw/DATA/`, which is the location
+expected by the chapter pipelines (and is git-ignored for large files).
 
-### Chapter 8: Predicting Rideshare Demand
+---
 
-Chapter 8 builds a space/time predictive model of ride share demand in Chicago. New R functionality is introduced along with functions unique to time series data.
+## Running Chapters
 
-| Dataset        | Description    | Open Data URL  | File Type | Location |
-| :------------- | :------------- | :------------- | :------------- | :------------- |
-| chicago_rideshare_trips_nov_dec_18_clean_sample| A 20% sample of rideshare trips taken in Chicago for November and December 2018 | https://data.cityofchicago.org/Transportation/Transportation-Network-Providers-Trips/m6dm-c72p | csv | DATA/Chapter8 |
+Each chapter is a self-contained pipeline script driven by a YAML config:
+
+```bash
+# Chapter 1 — Transit Indicators (Philadelphia)
+python -m chapters.ch01_transit_indicators --config config/chapters/ch01.yaml
+
+# Sample mode for quick testing
+python -m chapters.ch01_transit_indicators --config config/chapters/ch01.yaml --sample 200
+
+# All chapters follow the same pattern:
+python -m chapters.ch02_ugb_sprawl             --config config/chapters/ch02.yaml
+python -m chapters.ch03_boston_prices_baseline   --config config/chapters/ch03.yaml
+python -m chapters.ch04_boston_prices_spatial    --config config/chapters/ch04.yaml
+python -m chapters.ch05_chicago_policing_risk   --config config/chapters/ch05.yaml
+python -m chapters.ch06_churn_bounce            --config config/chapters/ch06.yaml
+python -m chapters.ch07_compas_fairness         --config config/chapters/ch07.yaml
+python -m chapters.ch08_rideshare_demand        --config config/chapters/ch08.yaml
+```
+
+### National Extensions (Coming Soon)
+
+```bash
+# National extension notebooks live under national/
+jupyter lab national/ch01_national_transit.ipynb
+```
+
+---
+
+## Testing & Quality
+
+```bash
+# Unit tests
+pytest tests/unit/
+
+# Unit tests with coverage
+pytest --cov=ppa --cov-report=term-missing tests/unit/
+
+# Integration tests (requires data in data/raw/DATA/)
+pytest tests/integration/
+
+# Lint and type check
+ruff check .
+black --check .
+mypy src/ppa
+```
+
+---
+
+## Progress Table
+
+| Ch | Title | Original R | Python Port | National Extension | Status |
+|----|-------|:----------:|:-----------:|:------------------:|--------|
+| 1 | Transit-Oriented Development Indicators | `tidycensus` + `sf` | `geopandas` + Census API | Multi-MSA transit premium (ACS 5-yr) | Port complete; national planned |
+| 2 | Urban Growth Boundary & Sprawl | `sf` overlays | `geopandas` ring buffers | BLS QCEW land-use comparison | Port complete; national planned |
+| 3 | Boston Home Prices — Baseline | `lm()` + `caret` | `scikit-learn` linear regression | Zillow ZHVI national trends | Port complete; national planned |
+| 4 | Boston Home Prices — Spatial | `spdep` lag features | `libpysal` / manual lag | National spatial autocorrelation | Port complete; national planned |
+| 5 | Predictive Policing (Chicago) | `spatstat` risk kernel | Poisson + KDE grid | FBI UCR / NIBRS comparison | Port complete; national planned |
+| 6 | People-Based ML — Churn/Bounce | `caret` classifiers | `scikit-learn` classifiers | BLS JOLTS churn benchmarks | Port complete; national planned |
+| 7 | Algorithmic Fairness (COMPAS) | Threshold + fairness grid | `scikit-learn` + fairness grid | CDC WONDER disparity analysis | Port complete; national planned |
+| 8 | Rideshare Demand Forecasting | Space/time panel | Space/time panel (`statsmodels`) | National TNC trip comparison | Port complete; national planned |
+
+### Legend
+
+- **Port complete** — Python pipeline produces equivalent outputs to the R original.
+- **National planned** — National-scale extension designed but not yet implemented.
+- **In progress** — Actively being developed.
+
+---
+
+## Architecture
+
+```
+src/ppa/                   Installable Python package
+  __init__.py              Version + public API re-exports
+  data.py                  Shared data loaders (ACS fetcher, CRS standardizer)
+  io/                      Dataset readers, writers, path resolution
+  util/                    Config, logging, reproducibility, custom errors
+  geo/                     CRS enforcement, kNN distance, ring buffers, overlays
+  raster/                  Raster-to-DataFrame conversion
+  stats/                   Quantile binning (q5, qbr)
+  ml/                      Poisson CV, threshold sweep, fairness grid, models, metrics
+  viz/                     Matplotlib themes (plot_theme, map_theme), maps, plots
+
+chapters/                  Ch01–Ch08 pipeline scripts (one per chapter)
+national/                  National-scale extension notebooks (planned)
+config/                    YAML configs: default.yaml + chapters/chXX.yaml
+tests/unit/                Unit tests for src/ppa helpers
+tests/integration/         Integration / smoke tests
+data/raw/DATA/             Raw datasets (git-ignored)
+outputs/                   Chapter artifacts (git-ignored)
+```
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `PPA_DATA_ROOT` | Root of the raw data directory | `data/raw/DATA` |
+| `PPA_OUTPUT_ROOT` | Root of the output directory | `outputs` |
+| `PPA_SEED` | Global random seed | `42` |
+| `PPA_LOG_LEVEL` | Logging level | `INFO` |
+| `CENSUS_API_KEY` | Census Bureau API key (optional, increases rate limits) | — |
+
+---
+
+## R-to-Python Helper Mapping
+
+| R (`functions.r`) | Python (`src/ppa`) |
+|---|---|
+| `plotTheme` | `ppa.viz.themes.plot_theme` |
+| `mapTheme` | `ppa.viz.themes.map_theme` |
+| `q5` | `ppa.stats.quantiles.q5` |
+| `qBr` | `ppa.stats.quantiles.qbr` |
+| `rast` | `ppa.raster.convert.rast_to_df` |
+| `nn_function` | `ppa.geo.nearest.mean_knn_distance` |
+| `multipleRingBuffer` | `ppa.geo.buffers.multiple_ring_buffer` |
+| `crossValidate` | `ppa.ml.cv.cross_validate_poisson_by_group` |
+| `iterateThresholds` | `ppa.ml.thresholds.iterate_thresholds` |
+| `iterateFairness` | `ppa.ml.fairness.iterate_fairness` |
+
+---
+
+## Datasets
+
+All of the book's data is free and open source. The `DATA/` directory contains
+datasets organized by chapter. See the
+[original repository](https://github.com/urbanSpatial/Public-Policy-Analytics-Landing)
+for full dataset provenance and API links.
+
+| Chapter | Key Datasets | Format |
+|---------|-------------|--------|
+| 1 | SEPTA stations, Philadelphia census tracts | GeoJSON |
+| 2 | Lancaster County buildings, UGB, green space | GeoJSON |
+| 3–4 | Boston house prices, crimes, neighborhoods | CSV, Shapefile, GeoJSON |
+| 5 | Chicago 311 calls, burglaries, police boundaries | GeoJSON |
+| 6 | Churn/bounce, housing subsidy | CSV |
+| 7 | COMPAS recidivism scores | CSV |
+| 8 | Chicago rideshare trips (Nov–Dec 2018) | CSV |
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.

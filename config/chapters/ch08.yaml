@@ -1,0 +1,12 @@
+chapter_id: "ch08"
+crs_epsg: null
+sample: null
+inputs:
+  trips: "Chapter8/chicago_rideshare_trips_nov_dec_18_clean_sample.csv"
+pickup_datetime_col: "trip_start_timestamp"
+spatial_unit_col: "pickup_census_tract"
+test_days: 14
+model:
+  type: "gradient_boosting"
+  n_estimators: 100
+  max_depth: 3

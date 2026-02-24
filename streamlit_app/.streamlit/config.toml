@@ -1,0 +1,14 @@
+[theme]
+primaryColor = "#1e40af"
+backgroundColor = "#f8fafc"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0f172a"
+font = "sans serif"
+
+[server]
+runOnSave = true
+headless = false
+
+[ui]
+hideTopBar = true
+hideSidebarNav = false
