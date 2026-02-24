@@ -41,6 +41,11 @@ dependencies = [
     "osmnx>=1.9",
     "python-dotenv>=1.0",
     "rich>=13",
+    # --- added for Streamlit + Socrata + viz ---
+    "sodapy>=2.5",
+    "streamlit>=1.38",
+    "pydeck>=0.8",
+    "altair>=5.0",
 ]
 
 [project.optional-dependencies]
