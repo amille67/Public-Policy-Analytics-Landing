@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import zipfile
+from collections import defaultdict
 from io import BytesIO
 from pathlib import Path
 
@@ -77,16 +78,37 @@ def fetch_tiger_tracts(
     return gdf[[c for c in keep if c in gdf.columns]]
 
 
+
+
+def _group_fips_by_state(fips_list: list[str]) -> dict[str, set[str]]:
+    state_to_counties: dict[str, set[str]] = defaultdict(set)
+    for fip in fips_list:
+        if len(fip) != 5 or not fip.isdigit():
+            raise ValueError(f"Invalid 5-digit FIPS: {fip}")
+        state_to_counties[fip[:2]].add(fip[2:])
+    return state_to_counties
+
+
 def tiger_tracts(
     fips_list: list[str] | None = None, *, year: int = 2022
 ) -> gpd.GeoDataFrame:
     """Return tract polygons for the given county FIPS codes."""
     if fips_list is None:
         fips_list = ["47037"]
-    state_fips = fips_list[0][:2]
-    county_fips = {f[2:] for f in fips_list}
-    gdf = fetch_tiger_tracts(year, state_fips)
-    return gdf[gdf["COUNTYFP"].isin(county_fips)].copy()
+    state_to_counties = _group_fips_by_state(fips_list)
+
+    gdfs: list[gpd.GeoDataFrame] = []
+    for state_fips, county_fips in state_to_counties.items():
+        gdf = fetch_tiger_tracts(year, state_fips)
+        gdfs.append(gdf[gdf["COUNTYFP"].isin(county_fips)].copy())
+
+    if not gdfs:
+        return gpd.GeoDataFrame(
+            columns=["GEOID", "STATEFP", "COUNTYFP", "TRACTCE", "NAME", "geometry"],
+            geometry="geometry",
+            crs="EPSG:4326",
+        )
+    return pd.concat(gdfs, ignore_index=True)
 
 
 def tiger_block_groups(
@@ -95,15 +117,25 @@ def tiger_block_groups(
     """Return block-group polygons for the given county FIPS codes."""
     if fips_list is None:
         fips_list = ["47037"]
-    state_fips = fips_list[0][:2]
-    county_fips = {f[2:] for f in fips_list}
-    raw_zip = _fetch_tiger_bytes(year, state_fips, "bg")
-    gdf = _read_tiger_zip(raw_zip, f"tiger_bg_{year}_{state_fips}").to_crs(epsg=4326)
-    if "GEOID" not in gdf.columns:
-        gdf["GEOID"] = gdf["STATEFP"] + gdf["COUNTYFP"] + gdf["BLKGRPCE"]
-    keep = ["GEOID", "STATEFP", "COUNTYFP", "BLKGRPCE", "NAME", "geometry"]
-    gdf = gdf[[c for c in keep if c in gdf.columns]]
-    return gdf[gdf["COUNTYFP"].isin(county_fips)].copy()
+    state_to_counties = _group_fips_by_state(fips_list)
+
+    gdfs: list[gpd.GeoDataFrame] = []
+    for state_fips, county_fips in state_to_counties.items():
+        raw_zip = _fetch_tiger_bytes(year, state_fips, "bg")
+        gdf = _read_tiger_zip(raw_zip, f"tiger_bg_{year}_{state_fips}").to_crs(epsg=4326)
+        if "GEOID" not in gdf.columns:
+            gdf["GEOID"] = gdf["STATEFP"] + gdf["COUNTYFP"] + gdf["BLKGRPCE"]
+        keep = ["GEOID", "STATEFP", "COUNTYFP", "BLKGRPCE", "NAME", "geometry"]
+        gdf = gdf[[c for c in keep if c in gdf.columns]]
+        gdfs.append(gdf[gdf["COUNTYFP"].isin(county_fips)].copy())
+
+    if not gdfs:
+        return gpd.GeoDataFrame(
+            columns=["GEOID", "STATEFP", "COUNTYFP", "BLKGRPCE", "NAME", "geometry"],
+            geometry="geometry",
+            crs="EPSG:4326",
+        )
+    return pd.concat(gdfs, ignore_index=True)
 
 
 def tiger_demographics(
@@ -116,32 +148,50 @@ def tiger_demographics(
     """
     if fips_list is None:
         fips_list = ["47037"]
-    state_fips = fips_list[0][:2]
-    county_fips = {f[2:] for f in fips_list}
+    state_to_counties = _group_fips_by_state(fips_list)
 
-    # Request raw Census codes mapped to stable friendly names.
-    acs = fetch_acs_tracts(
-        year,
-        state_fips,
-        variables={
-            "B01003_001E": "pop_total",
-            "B03002_003E": "pop_non_hisp_white",
-            "B17001_002E": "pop_poverty",
-            "B08201_002E": "pop_transit_commute",
-        },
-    )
-    acs = acs[acs["COUNTYFP"].isin(county_fips)].copy()
+    dfs: list[pd.DataFrame] = []
+    for state_fips, county_fips in state_to_counties.items():
+        # Request raw Census codes mapped to stable friendly names.
+        acs = fetch_acs_tracts(
+            year,
+            state_fips,
+            variables={
+                "B01003_001E": "pop_total",
+                "B03002_003E": "pop_non_hisp_white",
+                "B17001_002E": "pop_poverty",
+                "B08201_002E": "pop_transit_commute",
+            },
+        )
+        acs = acs[acs["COUNTYFP"].isin(county_fips)].copy()
 
-    total = pd.to_numeric(acs["pop_total"], errors="coerce").fillna(0)
-    non_hisp_white = pd.to_numeric(acs["pop_non_hisp_white"], errors="coerce").fillna(0)
-    poverty = pd.to_numeric(acs["pop_poverty"], errors="coerce").fillna(0)
-    commute_transit = pd.to_numeric(acs["pop_transit_commute"], errors="coerce").fillna(
-        0
-    )
+        total = pd.to_numeric(acs["pop_total"], errors="coerce").fillna(0)
+        non_hisp_white = pd.to_numeric(acs["pop_non_hisp_white"], errors="coerce").fillna(
+            0
+        )
+        poverty = pd.to_numeric(acs["pop_poverty"], errors="coerce").fillna(0)
+        commute_transit = pd.to_numeric(
+            acs["pop_transit_commute"], errors="coerce"
+        ).fillna(0)
 
-    out = pd.DataFrame({"GEOID": acs["GEOID"].astype(str)})
-    out["population"] = total
-    out["share_non_hisp_white"] = (non_hisp_white / total.replace(0, pd.NA)).fillna(0)
-    out["poverty_rate"] = (poverty / total.replace(0, pd.NA)).fillna(0)
-    out["transit_commute_rate"] = (commute_transit / total.replace(0, pd.NA)).fillna(0)
-    return out
+        out = pd.DataFrame({"GEOID": acs["GEOID"].astype(str)})
+        out["population"] = total
+        out["share_non_hisp_white"] = (non_hisp_white / total.replace(0, pd.NA)).fillna(0)
+        out["poverty_rate"] = (poverty / total.replace(0, pd.NA)).fillna(0)
+        out["transit_commute_rate"] = (commute_transit / total.replace(0, pd.NA)).fillna(
+            0
+        )
+        dfs.append(out)
+
+    if not dfs:
+        return pd.DataFrame(
+            columns=[
+                "GEOID",
+                "population",
+                "share_non_hisp_white",
+                "poverty_rate",
+                "transit_commute_rate",
+            ]
+        )
+
+    return pd.concat(dfs, ignore_index=True)

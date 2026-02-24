@@ -7,7 +7,7 @@ I fully explored the repo on this exact branch (file tree, raw source of every k
 - New addition on this branch = Nashville MVP (7 pre-computed high-value geospatial views via Socrata/TIGER/FHFA/OSM → GeoParquet + Streamlit dashboard).
 - Remaining blockers (from PATCH_REVIEW.md + code inspection):
   - Critical test mocking issue around RUNNER_MAP / _resolve_runner (tests expect callables; orchestrator now supports both but some tests may still fail).
-  - streamlit_app/__init__.py missing (package requirement).
+  - [RESOLVED] streamlit_app/__init__.py missing (package requirement).
   - Views not yet materialized (data/views/ empty → dashboard breaks).
   - Possible follow-on issues: mypy on new apportion_by_area, rasterio/GDAL env quirks, path resolution in _project_root(), county roll-up geometry handling, CI smoke tests.
 
@@ -28,7 +28,7 @@ Goal: Green CI, materialized views, working dashboard, shippable v0.2.0 in <4 ho
 
 ## PHASE 2 – Fix PATCH_REVIEW.md Blockers (30–45 min)
 - [ ] Verify mocking tests
-- [ ] Ensure streamlit_app/__init__.py exists
+- [x] Ensure streamlit_app/__init__.py exists (Resolved)
 - [ ] Materialize 7 views
 - [ ] Dashboard smoke
 
