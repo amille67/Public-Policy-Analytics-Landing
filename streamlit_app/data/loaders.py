@@ -8,7 +8,7 @@ import geopandas as gpd
 import pandas as pd
 import streamlit as st
 
-VIEW_DIR = Path("data/views")
+VIEW_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "views"
 
 
 @st.cache_data(ttl=3600, show_spinner="Loading view...")
@@ -18,17 +18,18 @@ def load_view(view_id: str, geo_level: str = "lowest") -> gpd.GeoDataFrame | pd.
         st.error(f"View file missing: {file}")
         return pd.DataFrame()
 
-    df = pd.read_parquet(file)
-    if df.empty or "geometry" not in df.columns:
-        return df
-
-    if df["geometry"].isna().all():
-        return df.drop(columns=["geometry"]).copy()
-
+    # Use gpd.read_parquet for proper geoparquet geometry reconstruction;
+    # fall back to pd.read_parquet for non-spatial files (e.g. View 7).
     try:
-        gdf = gpd.GeoDataFrame(df, geometry="geometry")
-    except Exception:
-        return df.drop(columns=["geometry"]).copy()
+        gdf = gpd.read_parquet(file)
+    except (ValueError, KeyError):
+        return pd.read_parquet(file)
+
+    if gdf.empty:
+        return pd.DataFrame(gdf)
+
+    if "geometry" in gdf.columns and gdf["geometry"].isna().all():
+        return pd.DataFrame(gdf.drop(columns=["geometry"]))
 
     if gdf.crs is None:
         gdf = gdf.set_crs("EPSG:4326", allow_override=True)

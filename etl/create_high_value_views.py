@@ -70,6 +70,14 @@ def _rollup_county(
     else:
         if "GEOID" in lowest.columns:
             work = lowest.copy()
+            # For mixed-geometry views (e.g. View 1 with tract polygons +
+            # raw complaint points), keep only polygon rows for the county
+            # dissolve so point rows with GEOID=None don't create a
+            # spurious "None" county entry.
+            geom_types = work.geometry.geom_type
+            poly_mask = geom_types.isin(["Polygon", "MultiPolygon"])
+            if poly_mask.any() and not poly_mask.all():
+                work = work[poly_mask].copy()
             work["county_fips"] = work["GEOID"].astype(str).str[:5]
             numeric_cols = [
                 c
