@@ -18,6 +18,7 @@ outputs_smoke/
 data/raw/DATA/
 data/interim/
 data/processed/
+data/views/
 *.pkl
 !tests/fixtures/**
 uv.lock

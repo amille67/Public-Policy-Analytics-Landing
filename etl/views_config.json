@@ -1,0 +1,11 @@
+{
+  "views": [
+    {"view_id": 1, "name": "nashville_311_distress_risk", "runner_id": "01", "chapter": 5},
+    {"view_id": 2, "name": "nashville_permits_transition", "runner_id": "02", "chapter": 2},
+    {"view_id": 3, "name": "nashville_property_value_equity", "runner_id": "03", "chapter": 3},
+    {"view_id": 4, "name": "nashville_urban_services_district", "runner_id": "04", "chapter": 2},
+    {"view_id": 5, "name": "nashville_industrial_footprints", "runner_id": "05", "chapter": 5},
+    {"view_id": 6, "name": "nashville_transit_access_equity", "runner_id": "06", "chapter": 1},
+    {"view_id": 7, "name": "national_housing_context_nashville_highlight", "runner_id": "07", "chapter": "national"}
+  ]
+}
