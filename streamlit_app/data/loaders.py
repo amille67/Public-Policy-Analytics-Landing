@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 import streamlit as st
 
 VIEW_DIR = Path("data/views")
@@ -12,15 +13,19 @@ VIEW_DIR = Path("data/views")
 
 @st.cache_data(ttl=3600, show_spinner="Loading view...")
 def load_view(view_id: str, geo_level: str = "lowest") -> gpd.GeoDataFrame:
-    """Load pre-computed GeoParquet from the ETL pipeline."""
     file = VIEW_DIR / f"view_{view_id}_{geo_level}.geoparquet"
     if not file.exists():
         st.error(f"View file missing: {file}")
         return gpd.GeoDataFrame()
 
-    gdf = gpd.read_parquet(file)
-    if gdf.empty:
-        return gdf
+    df = pd.read_parquet(file)
+    if df.empty:
+        return gpd.GeoDataFrame()
+
+    if "geometry" in df.columns:
+        gdf = gpd.GeoDataFrame(df, geometry="geometry")
+    else:
+        gdf = gpd.GeoDataFrame(df)
 
     if gdf.crs is None:
         gdf = gdf.set_crs("EPSG:4326", allow_override=True)
