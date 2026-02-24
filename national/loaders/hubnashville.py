@@ -37,19 +37,35 @@ def _to_gdf(records: list[dict[str, Any]]) -> gpd.GeoDataFrame:
     if df.empty:
         return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
 
+    # 1. Socrata GeoJSON column (the_geom, mapped_location, geometry)
+    geom_col = next((c for c in ["the_geom", "mapped_location", "geometry"] if c in df.columns), None)
+    if geom_col is not None:
+        from shapely.geometry import shape
+        def parse_geom(x):
+            try:
+                return shape(x) if isinstance(x, dict) else None
+            except Exception:
+                return None
+        df["geometry"] = df[geom_col].apply(parse_geom)
+        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+        return gdf[gdf.geometry.notna()].copy()
+
+    # 2. Fallback: point columns (existing logic)
     lon_candidates = ["longitude", "lng", "lon", "x"]
     lat_candidates = ["latitude", "lat", "y"]
     lon_col = next((c for c in lon_candidates if c in df.columns), None)
     lat_col = next((c for c in lat_candidates if c in df.columns), None)
-
-    if lon_col is None or lat_col is None:
-        return gpd.GeoDataFrame(df, geometry=[], crs="EPSG:4326")
-
-    lon = pd.to_numeric(df[lon_col], errors="coerce")
-    lat = pd.to_numeric(df[lat_col], errors="coerce")
-    valid = lon.notna() & lat.notna()
-    if not valid.any():
-        return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+    if lon_col and lat_col:
+        lon = pd.to_numeric(df[lon_col], errors="coerce")
+        lat = pd.to_numeric(df[lat_col], errors="coerce")
+        valid = lon.notna() & lat.notna()
+        if valid.any():
+            return gpd.GeoDataFrame(
+                df.loc[valid], 
+                geometry=gpd.points_from_xy(lon[valid], lat[valid]), 
+                crs="EPSG:4326"
+            )
+    return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
 
     df = df.loc[valid].copy()
     return gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(lon[valid], lat[valid]), crs="EPSG:4326")
